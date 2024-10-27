@@ -14,8 +14,8 @@ const HomeBarChart = () => {
   const fetchData = async () => {
     try {
       const [incomeResponse, expenseResponse] = await Promise.all([
-        fetch("http://77.37.49.209:5000//income/get/E-income"),
-        fetch("http://77.37.49.209:5000//expense/get/Eexpenses"),
+        fetch("http://77.37.49.209:5000/income/get/E-income"),
+        fetch("http://77.37.49.209:5000/expense/get/Eexpenses"),
       ]);
 
       const incomeData = await incomeResponse.json();

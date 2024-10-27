@@ -56,7 +56,7 @@ function Employeetask() {
 
   const downloadExcel = (id) => {
     axios
-      .get(`http://77.37.49.209:5000//employeesalary/getexcel/${id}`, {
+      .get(`http://77.37.49.209:5000/employeesalary/getexcel/${id}`, {
         responseType: "blob",
       })
       .then((response) => {
@@ -85,7 +85,7 @@ function Employeetask() {
       salaryStatuses,
     };
 
-    fetch("http://77.37.49.209:5000//employeesalary/post/Esalary", {
+    fetch("http://77.37.49.209:5000/employeesalary/post/Esalary", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -101,7 +101,7 @@ function Employeetask() {
   };
 
   const alldata = () => {
-    fetch("http://77.37.49.209:5000//employeesalary/get/Esalary")
+    fetch("http://77.37.49.209:5000/employeesalary/get/Esalary")
       .then((response) => response.json())
       .then((data) => {
         setAllJobs(data.rows);
@@ -158,7 +158,7 @@ function Employeetask() {
   const handleConfirmDelete = async () => {
     try {
       await fetch(
-        `http://77.37.49.209:5000//employeesalary/delete/${currentEmployee.id}`,
+        `http://77.37.49.209:5000/employeesalary/delete/${currentEmployee.id}`,
         {
           method: "DELETE",
         }
@@ -183,7 +183,7 @@ function Employeetask() {
 
     try {
       await fetch(
-        `http://77.37.49.209:5000//employeesalary/update/${currentEmployee.id}`,
+        `http://77.37.49.209:5000/employeesalary/update/${currentEmployee.id}`,
         {
           method: "PUT",
           headers: {

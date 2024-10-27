@@ -50,7 +50,7 @@ const [form, setForm] = useState({});
   };
 
   const downloadExcel = (id) => {
-    axios.get(`http://77.37.49.209:5000//employeetask/getexcel/${id}`, { responseType: 'blob' })
+    axios.get(`http://77.37.49.209:5000/employeetask/getexcel/${id}`, { responseType: 'blob' })
       .then((response) => {
         const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         saveAs(blob, 'data.xlsx');
@@ -106,7 +106,7 @@ const [form, setForm] = useState({});
 
   const handleSubmit = async () => {
     try {
-      const reslt = await fetch("http://77.37.49.209:5000//employeetask/post/Etask", {
+      const reslt = await fetch("http://77.37.49.209:5000/employeetask/post/Etask", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -124,7 +124,7 @@ const [form, setForm] = useState({});
 
   const fetchData = async () => {
     try {
-      const response = await fetch("http://77.37.49.209:5000//employeetask/get/Etask");
+      const response = await fetch("http://77.37.49.209:5000/employeetask/get/Etask");
       const data = await response.json();
       settaskdata(data.rows)
       setFilteredData(data.rows);
@@ -189,7 +189,7 @@ const handleDelete = (Task) => {
 
 const handleConfirmDelete = async () => {
   try {
-    await fetch(`http://77.37.49.209:5000//employeetask/delete/${currentTask.id}`, {
+    await fetch(`http://77.37.49.209:5000/employeetask/delete/${currentTask.id}`, {
       method: 'DELETE',
     });
     setDeleteModalOpen(false);
@@ -210,7 +210,7 @@ const handleSubmitChange = async (e) => {
   e.preventDefault();
 
   try {
-    await fetch(`http://77.37.49.209:5000//employeetask/update/${currentTask.id}`, {
+    await fetch(`http://77.37.49.209:5000/employeetask/update/${currentTask.id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

@@ -22,7 +22,7 @@ const DashboardChart = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://77.37.49.209:5000//api/dashboard-data');
+        const response = await fetch('http://77.37.49.209:5000/api/dashboard-data');
         const data = await response.json();
      console.log(data);
         setChartData({

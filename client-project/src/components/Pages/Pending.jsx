@@ -80,7 +80,7 @@ function Employeetask() {
 
   const downloadExcel = (id) => {
     axios
-      .get(`http://77.37.49.209:5000//pending/getexcel/${id}`, {
+      .get(`http://77.37.49.209:5000/pending/getexcel/${id}`, {
         responseType: "blob",
       })
       .then((response) => {
@@ -133,7 +133,7 @@ function Employeetask() {
 
     try {
       const result = await fetch(
-        "http://77.37.49.209:5000//pending/post/E-pending",
+        "http://77.37.49.209:5000/pending/post/E-pending",
         {
           method: "POST",
           headers: {
@@ -152,7 +152,7 @@ function Employeetask() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        "http://77.37.49.209:5000//pending/get/E-pending"
+        "http://77.37.49.209:5000/pending/get/E-pending"
       );
       const data = await response.json();
       setTaskData(data.rows);
@@ -209,7 +209,7 @@ function Employeetask() {
         };
 
         try {
-          await fetch(`http://77.37.49.209:5000//pending/update/${pending.id}`, {
+          await fetch(`http://77.37.49.209:5000/pending/update/${pending.id}`, {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
@@ -247,7 +247,7 @@ function Employeetask() {
 
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`http://77.37.49.209:5000//pending/delete/${currentStatus.id}`, {
+      await fetch(`http://77.37.49.209:5000/pending/delete/${currentStatus.id}`, {
         method: "DELETE",
       });
       setDeleteModalOpen(false);
@@ -279,7 +279,7 @@ function Employeetask() {
     e.preventDefault();
 
     try {
-      await fetch(`http://77.37.49.209:5000//pending/update/${currentStatus.id}`, {
+      await fetch(`http://77.37.49.209:5000/pending/update/${currentStatus.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -65,7 +65,7 @@ function Employeetask() {
 
   const downloadExcel = (id) => {
     axios
-      .get(`http://77.37.49.209:5000//customer/getexcelcustomer/${id}`, {
+      .get(`http://77.37.49.209:5000/customer/getexcelcustomer/${id}`, {
         responseType: "blob",
       })
       .then((response) => {
@@ -98,7 +98,7 @@ function Employeetask() {
 
     try {
       const result = await fetch(
-        "http://77.37.49.209:5000//customer/post/E-customer",
+        "http://77.37.49.209:5000/customer/post/E-customer",
         {
           method: "POST",
           headers: {
@@ -119,7 +119,7 @@ function Employeetask() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        "http://77.37.49.209:5000//customer/get/E-customer"
+        "http://77.37.49.209:5000/customer/get/E-customer"
       );
       const data = await response.json();
       setTaskData(data.rows);
@@ -175,7 +175,7 @@ function Employeetask() {
   
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`http://77.37.49.209:5000//customer/delete/${currentCustomer.id}`, {
+      await fetch(`http://77.37.49.209:5000/customer/delete/${currentCustomer.id}`, {
         method: 'DELETE',
       });
       setDeleteModalOpen(false);
@@ -198,7 +198,7 @@ function Employeetask() {
     e.preventDefault();
 
     try {
-      await fetch(`http://77.37.49.209:5000//customer/update/${currentCustomer.id}`, {
+      await fetch(`http://77.37.49.209:5000/customer/update/${currentCustomer.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -49,7 +49,7 @@ function Employeetask() {
 
   const downloadExcel = (id) => {
     axios
-      .get(`http://77.37.49.209:5000//income/getexcel/${id}`, {
+      .get(`http://77.37.49.209:5000/income/getexcel/${id}`, {
         responseType: "blob",
       })
       .then((response) => {
@@ -85,7 +85,7 @@ function Employeetask() {
     };
 
     try {
-      const result = await fetch("http://77.37.49.209:5000//income/post/E-income", {
+      const result = await fetch("http://77.37.49.209:5000/income/post/E-income", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -103,7 +103,7 @@ function Employeetask() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("http://77.37.49.209:5000//income/get/E-income");
+      const response = await fetch("http://77.37.49.209:5000/income/get/E-income");
       const data = await response.json();
       setTaskData(data.rows);
       setFilteredData(data.rows);
@@ -161,7 +161,7 @@ function Employeetask() {
 
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`http://77.37.49.209:5000//income/delete/${currentIncome.id}`, {
+      await fetch(`http://77.37.49.209:5000/income/delete/${currentIncome.id}`, {
         method: "DELETE",
       });
       setDeleteModalOpen(false);
@@ -181,7 +181,7 @@ function Employeetask() {
     e.preventDefault();
 
     try {
-      await fetch(`http://77.37.49.209:5000//income/update/${currentIncome.id}`, {
+      await fetch(`http://77.37.49.209:5000/income/update/${currentIncome.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
