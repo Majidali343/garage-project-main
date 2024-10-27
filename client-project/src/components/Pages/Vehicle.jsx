@@ -68,7 +68,7 @@ function Employeetask() {
     };
 
     try {
-      await fetch("http://localhost:5000/vehicles/post/E-vehicles", {
+      await fetch("http://77.37.49.209:5000//vehicles/post/E-vehicles", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,7 +84,7 @@ function Employeetask() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("http://localhost:5000/vehicles/get/E-vehicles");
+      const response = await fetch("http://77.37.49.209:5000//vehicles/get/E-vehicles");
       const data = await response.json();
       setTaskData(data.rows);
       filterData(data.rows, dateFilter, searchQuery);
@@ -139,7 +139,7 @@ function Employeetask() {
 
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`http://localhost:5000/vehicles/delete/${currentVehicle.id}`, {
+      await fetch(`http://77.37.49.209:5000//vehicles/delete/${currentVehicle.id}`, {
         method: 'DELETE',
       });
       setDeleteModalOpen(false);
@@ -161,7 +161,7 @@ function Employeetask() {
     e.preventDefault();
 
     try {
-      await fetch(`http://localhost:5000/vehicles/update/${currentVehicle.id}`, {
+      await fetch(`http://77.37.49.209:5000//vehicles/update/${currentVehicle.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
