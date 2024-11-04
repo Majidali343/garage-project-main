@@ -16,20 +16,27 @@ function Employeetask() {
   const [descriptions, setDescriptions] = useState(); // Default value for descriptions
   const [dates, setDates] = useState([new Date()]); // Default date for the first row
   const [contacts, setContacts] = useState([null]); // Default value for contacts
-  const [deals, setDeals] = useState([null]); // Default value for deals
+  const [amounts, setAmounts] = useState([null]); // Default value for amounts
   const [names, setNames] = useState(); // State for names
-  const [customers, setCustomers] = useState([null]); // Default value for customers
-  const [searchQuery, setSearchQuery] = useState(""); // State for search query
+  const [searchFilters, setSearchFilters] = useState({
+    name: "",
+    vehicle: "",
+    contact: "",
+    location: ""
+  });
   const [taskData, setTaskData] = useState([]);
-
+  const [locations, setLocations] = useState([null]);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState(null);
+  const [modalVehicles, setModalVehicles] = useState([]);
+  const [modalDropdownOpen, setModalDropdownOpen] = useState(false);
   const [formData, setFormData] = useState({});
 
   const [filteredData, setFilteredData] = useState([]);
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
   const [searchName, setSearchName] = useState("");
+  const [selectedVehicles, setSelectedVehicles] = useState([]);
 
   const toggleDropdown = (index) => {
     setDropdownOpen(dropdownOpen === index ? null : index);
@@ -42,15 +49,10 @@ function Employeetask() {
         newVehicles[index] = value;
         setVehicles(newVehicles);
         break;
-      case "deal":
-        const newDeals = [...deals];
-        newDeals[index] = value;
-        setDeals(newDeals);
-        break;
-      case "customer":
-        const newCustomers = [...customers];
-        newCustomers[index] = value;
-        setCustomers(newCustomers);
+      case "amount":
+        const newAmounts = [...amounts];
+        newAmounts[index] = value;
+        setAmounts(newAmounts);
         break;
       case "contact":
         const newContacts = [...contacts];
@@ -63,22 +65,6 @@ function Employeetask() {
     setDropdownOpen(null); // Close dropdown after selection
   };
 
-  const downloadExcel = (id) => {
-    axios
-      .get(`http://77.37.49.209:5000/customer/getexcelcustomer/${id}`, {
-        responseType: "blob",
-      })
-      .then((response) => {
-        const blob = new Blob([response.data], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-        saveAs(blob, "data.xlsx");
-      })
-      .catch((error) => {
-        console.error("There was an error downloading the Excel file!", error);
-      });
-  };
-
   const handleDateChange = (date, index) => {
     const newDates = [...dates];
     newDates[index] = date;
@@ -88,12 +74,12 @@ function Employeetask() {
   const handleSubmit = async () => {
     const formData = {
       names,
-      vehicles,
+      vehicles: selectedVehicles.join(', '),
       descriptions,
       dates,
       contacts,
-      deals,
-      customers,
+      amounts,
+      locations,
     };
 
     try {
@@ -135,17 +121,23 @@ function Employeetask() {
 
   useEffect(() => {
     filterData();
-  }, [dateFilter, searchName]);
+  }, [dateFilter, searchFilters]);
 
   const resetFilters = () => {
     setDateFilter({ start: "", end: "" });
-    setSearchName("");
-    setFilteredData(taskData); // Reset to original data
+    setSearchFilters({
+      name: "",
+      vehicle: "",
+      contact: "",
+      location: ""
+    });
+    setFilteredData(taskData);
   };
 
   const filterData = () => {
     let data = taskData;
 
+    // Date filtering
     if (dateFilter.start && dateFilter.end) {
       data = data.filter(
         (invoice) =>
@@ -153,10 +145,17 @@ function Employeetask() {
       );
     }
 
-    if (searchName) {
-      data = data.filter((invoice) =>
-        invoice.name.toLowerCase().includes(searchName.toLowerCase())
-      );
+    // Search filtering across multiple fields
+    if (Object.values(searchFilters).some(filter => filter !== "")) {
+      data = data.filter(item => {
+        return (
+          (!searchFilters.name || 
+            item.name?.toLowerCase().includes(searchFilters.name.toLowerCase())) &&
+          (!searchFilters.vehicle || 
+            item.vehicle?.toLowerCase().includes(searchFilters.vehicle.toLowerCase())) 
+
+        );
+      });
     }
 
     setFilteredData(data);
@@ -164,7 +163,12 @@ function Employeetask() {
 
   const handleEdit = (customer) => {
     setCurrentCustomer(customer);
-    setFormData(customer);
+    const vehicleArray = customer.vehicle ? customer.vehicle.split(', ') : [];
+    setModalVehicles(vehicleArray);
+    setFormData({
+      ...customer,
+      vehicle: vehicleArray
+    });
     setEditModalOpen(true);
   };
 
@@ -172,45 +176,103 @@ function Employeetask() {
     setCurrentCustomer(customer);
     setDeleteModalOpen(true);
   };
-  
+
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`http://77.37.49.209:5000/customer/delete/${currentCustomer.id}`, {
-        method: 'DELETE',
-      });
+      await fetch(
+        `http://77.37.49.209:5000/customer/delete/${currentCustomer.id}`,
+        {
+          method: "DELETE",
+        }
+      );
       setDeleteModalOpen(false);
       fetchData();
     } catch (error) {
       console.error("Error deleting customer:", error);
     }
-  
   };
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
       ...prevData,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  // 
+  //
   const handleSubmitChange = async (e) => {
     e.preventDefault();
 
     try {
-      await fetch(`http://77.37.49.209:5000/customer/update/${currentCustomer.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      
+      const submitData = {
+        ...formData,
+        vehicle: modalVehicles.join(', ') // Join vehicles array into string
+      };
+
+      await fetch(
+        `http://77.37.49.209:5000/customer/update/${currentCustomer.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(submitData),
+        }
+      );
 
       setEditModalOpen(false);
       fetchData();
     } catch (error) {
       console.error("Error updating customer data:", error);
     }
+  };
+
+  const handleModalVehicleChange = (vehicle) => {
+    setModalVehicles(prevVehicles => {
+      if (vehicle === "") {
+        return [];
+      }
+      const newVehicles = prevVehicles.includes(vehicle)
+        ? prevVehicles.filter(v => v !== vehicle)
+        : [...prevVehicles, vehicle];
+      
+      // Update formData when vehicles change
+      setFormData(prev => ({
+        ...prev,
+        vehicle: newVehicles.join(', ')
+      }));
+      
+      return newVehicles;
+    });
+  };
+
+  const vehicleOptions = [
+    "",
+    "Crane: 25-Ton",
+    "Crane: 50-Ton",
+    "Crane: 70-Ton",
+    "Crane: 100-Ton",
+    "Forklift: 3-Ton",
+    "Forklift: 5-Ton",
+    "Forklift: 7-Ton",
+    "Forklift: 10-Ton",
+    "Boomloader: 523",
+    "Boomloader: 540",
+  ];
+
+  const handleVehicleChange = (vehicle) => {
+    setSelectedVehicles((prevVehicles) => {
+      if (vehicle === "") {
+        return [];
+      }
+      if (prevVehicles.includes(vehicle)) {
+        return prevVehicles.filter((v) => v !== vehicle);
+      } else {
+        return [...prevVehicles, vehicle];
+      }
+    });
+    setDropdownOpen(null);
   };
 
   return (
@@ -243,41 +305,48 @@ function Employeetask() {
             Submit
           </button>
         </header>
-        <div className="bg-white shadow p-10 flex items-center justify-center ">
-          <div className="filters">
-            <input
-              type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
-              value={dateFilter.start}
-              onChange={(e) =>
-                setDateFilter({ ...dateFilter, start: e.target.value })
-              }
-              placeholder="Start Date"
-            />
-            <input
-              type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
-              value={dateFilter.end}
-              onChange={(e) =>
-                setDateFilter({ ...dateFilter, end: e.target.value })
-              }
-              placeholder="End Date"
-            />
-            <input
-              type="text"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              placeholder="Search Customer"
-            />
-            <button
-              onClick={resetFilters}
-              className="bg-[#ea8732] text-white px-6 py-1 rounded-md"
-            >
-              Reset
-            </button>
-          </div>
+        <div className="bg-white shadow p-10 flex items-center justify-center flex-wrap gap-4">
+        <div className="filters flex flex-wrap gap-4">
+          <input
+            type="date"
+            className="w-32 px-3 py-1 border rounded shadow-sm text-xs"
+            value={dateFilter.start}
+            onChange={(e) =>
+              setDateFilter({ ...dateFilter, start: e.target.value })
+            }
+            placeholder="Start Date"
+          />
+          <input
+            type="date"
+            className="w-32 px-3 py-1 border rounded shadow-sm text-xs"
+            value={dateFilter.end}
+            onChange={(e) =>
+              setDateFilter({ ...dateFilter, end: e.target.value })
+            }
+            placeholder="End Date"
+          />
+          <input
+            type="text"
+            className="w-32 px-3 py-1 border rounded shadow-sm text-xs"
+            value={searchFilters.name}
+            onChange={(e) => setSearchFilters(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="Search Name"
+          />
+          <input
+            type="text"
+            className="w-32 px-3 py-1 border rounded shadow-sm text-xs"
+            value={searchFilters.vehicle}
+            onChange={(e) => setSearchFilters(prev => ({ ...prev, vehicle: e.target.value }))}
+            placeholder="Search Vehicle"
+          />
+          <button
+            onClick={resetFilters}
+            className="bg-[#ea8732] text-white px-6 py-1 rounded-md"
+          >
+            Reset
+          </button>
         </div>
+      </div>
         <div className="flex-1 p-6 flex justify-center overflow-y-auto">
           <div className="overflow-x-auto w-full max-w-4xl">
             <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
@@ -328,36 +397,43 @@ function Employeetask() {
                       <button
                         className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
                         type="button"
-                        onClick={() => toggleDropdown(0)}
+                        onClick={toggleDropdown}
                       >
-                        {vehicles[0] || "Select Vehicle"}
+                        {selectedVehicles.length
+                          ? selectedVehicles.join(", ")
+                          : "Choose Vehicle(s)"}
+                        <svg
+                          className="w-2.5 h-2.5 ml-3"
+                          aria-hidden="true"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 10 6"
+                        >
+                          <path
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.5"
+                            d="m1 1 4 4 4-4"
+                          />
+                        </svg>
                       </button>
-                      {dropdownOpen === 0 && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-md shadow-lg z-10">
-                          <ul className="py-1">
-                            {[
-                              "Crane: 25-Ton",
-                              "Crane: 50-Ton",
-                              "Crane: 70-Ton",
-                              "Crane: 100-Ton",
-                              "Forklift: 3-Ton",
-                              "Forklift: 5-Ton",
-                              "Forklift: 7-Ton",
-                              "Forklift: 10-Ton",
-                              "Boomloader: 523",
-                              "Boomloader: 540",
-                            ].map((vehicle, index) => (
-                              <li
-                                key={index}
-                                className="px-4 py-2 cursor-pointer hover:bg-gray-100"
-                                onClick={() =>
-                                  handleDropdownChange(vehicle, 0, "vehicle")
-                                }
-                              >
-                                {vehicle}
-                              </li>
-                            ))}
-                          </ul>
+                      {dropdownOpen && (
+                        <div className="absolute mt-2 w-full py-1 bg-white border border-gray-200 rounded shadow-md">
+                          {vehicleOptions.map((option) => (
+                            <label
+                              key={option}
+                              className="flex items-center px-4 py-2 hover:bg-gray-100"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedVehicles.includes(option)}
+                                onChange={() => handleVehicleChange(option)}
+                                className="mr-2"
+                              />
+                              {option || "None"}
+                            </label>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -392,60 +468,24 @@ function Employeetask() {
                     />
                   </td>
                   <td className="py-3 px-4 text-center text-xs">
-                    <div className="relative inline-block">
-                      <button
-                        className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
-                        type="button"
-                        onClick={() => toggleDropdown(2)}
-                      >
-                        {customers[0] || "Select Location"}
-                      </button>
-                      {dropdownOpen === 2 && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-md shadow-lg z-10">
-                          <ul className="py-1">
-                            {["Old", "New"].map((customer, index) => (
-                              <li
-                                key={index}
-                                className="px-4 py-2 cursor-pointer hover:bg-gray-100"
-                                onClick={() =>
-                                  handleDropdownChange(customer, 0, "customer")
-                                }
-                              >
-                                {customer}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
+                    <input
+                      type="text"
+                      className="w-full py-1 px-2 border rounded"
+                      placeholder="Enter Location"
+                      onChange={(e) => {
+                        setLocations(e.target.value);
+                      }}
+                    />
                   </td>
                   <td className="py-3 px-4 text-center text-xs">
-                    <div className="relative inline-block">
-                      <button
-                        className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
-                        type="button"
-                        onClick={() => toggleDropdown(1)}
-                      >
-                        {deals[0] || "Select Deal"}
-                      </button>
-                      {dropdownOpen === 1 && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-md shadow-lg z-10">
-                          <ul className="py-1">
-                            {["Cash", "Online"].map((deal, index) => (
-                              <li
-                                key={index}
-                                className="px-4 py-2 cursor-pointer hover:bg-gray-100"
-                                onClick={() =>
-                                  handleDropdownChange(deal, 0, "deal")
-                                }
-                              >
-                                {deal}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
+                  <input
+                      type="text"
+                      className="w-full py-1 px-2 border rounded"
+                      placeholder="Enter Amount"
+                      onChange={(e) => {
+                        setAmounts(e.target.value, "amount");
+                      }}
+                    />
                   </td>
                 </tr>
 
@@ -468,16 +508,16 @@ function Employeetask() {
                       {customer.contact}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
-                      {customer.deals}
+                      {customer.location}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
-                      {customer.customer}
+                      {customer.amount}
                     </td>
                     <td className=" text-center text-xs">
                       <button
-                                                 onClick={() => handleEdit(customer)}
-                      // onClick={handleEdit(customer)}
-                                                className="text-blue-500  hover:text-blue-700"
+                        onClick={() => handleEdit(customer)}
+                        // onClick={handleEdit(customer)}
+                        className="text-blue-500  hover:text-blue-700"
                       >
                         <FaRegEdit className="h-5 w-5" />
                       </button>
@@ -515,142 +555,130 @@ function Employeetask() {
       </div>
 
       {editModalOpen && (
-          <Modal   show={editModalOpen}  onClose={() => setEditModalOpen(false)}>
-       <div className="h-auto w-auto">
-       <h2 className="text-lg font-bold">Edit Customer</h2>
+        <Modal show={editModalOpen} onClose={() => setEditModalOpen(false)}>
+          <div className="h-auto w-auto">
+            <h2 className="text-lg font-bold">Edit Customer</h2>
             <form onSubmit={handleSubmitChange}>
-            <div className="grid grid-cols-2 gap-4">
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Name</label>
-      <input
-                  type="text"
-                  required
-                  name="name"
-                  value={formData.name || ""}
-                  onChange={handleChange}
-                  className="mt-1 block p-2 h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    name="name"
+                    value={formData.name || ""}
+                    onChange={handleChange}
+                    className="mt-1 block p-2 h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Vehicle</label>
-                    {/* <input
-                  type="text"
-                  name="vehicle"
-                  value={formData.vehicle || ""}
-                  onChange={handleChange}
-                  className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  /> */}
-             
-<select
-            name="vehicle"
-            required
-            value={formData.vehicle || ""}
-            onChange={handleChange}
-                    className="mt-1 block h-8  w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select vehicle</option>
-                    <option value="Crane: 50-Ton">Crane: 50-Ton</option>
-                    <option value="Crane: 70-Ton">Crane: 70-Ton</option>
-                    <option value="Crane: 100-Ton">Crane: 100-Ton</option>
-                    <option value="Forklift: 3-Ton">Forklift: 3-Ton</option>
-                    <option value="Forklift: 5-Ton">Forklift: 5-Ton</option>
-                    <option value="Forklift: 7-Ton">Forklift: 7-Ton</option>
-                    <option value="Forklift: 10-Ton">Forklift: 10-Ton</option>
-                    <option value="Boomloader: 523">Boomloader: 523</option>
-                    <option value="Boomloader: 540">Boomloader: 540</option>
-
-                  </select>
-
-                </div>
+              <label className="block text-sm font-medium text-gray-700">
+                Vehicle
+              </label>
+              <div className="relative">
+                <button
+                  type="button"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-left text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  onClick={() => setModalDropdownOpen(!modalDropdownOpen)}
+                >
+                  {modalVehicles.length ? modalVehicles.join(', ') : 'Choose Vehicle(s)'}
+                </button>
+                {modalDropdownOpen && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg">
+                    {vehicleOptions.map((option) => (
+                      <label
+                        key={option}
+                        className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={modalVehicles.includes(option)}
+                          onChange={() => handleModalVehicleChange(option)}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">{option || 'None'}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Description</label>
-                            <input
-                  type="text"
-                  name="description"
-                  value={formData.description || ""}
-                  onChange={handleChange}
-                  required
-                  className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  <label className="block text-sm font-medium text-gray-700">
+                    Description
+                  </label>
+                  <input
+                    type="text"
+                    name="description"
+                    value={formData.description || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Date</label>
-                            <input
-                  type="date"
-                  name="date"
-                  value={formData.date || ""}
-                  onChange={handleChange}
-                  className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  <label className="block text-sm font-medium text-gray-700">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date || ""}
+                    onChange={handleChange}
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Contact</label>
-                            <input
-                  type="text"
-                  name="contact"
-                  value={formData.contact || ""}
-                  onChange={handleChange}
-                  required
-                  className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  <label className="block text-sm font-medium text-gray-700">
+                    Contact
+                  </label>
+                  <input
+                    type="text"
+                    name="contact"
+                    value={formData.contact || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Deals</label>
-                            {/* <input
-                  type="text"
-                  name="deal"
-                  value={formData.deals || ""}
-                  required
-                  onChange={handleChange}
-                  className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  /> */}
-
-<select
-          name="deals"
-          value={formData.deals || ""}
-          required
-          onChange={handleChange}
-                    className="mt-1 block h-8  w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select Deal</option>
-                    <option value="Online">Online</option>
-                    <option value="Cash">Cash</option>
-
-                  </select>
-                </div>
-                <div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700">Location</label>
-                           {/* <input
-                  type="text"
-                  name="customer"
-                  required
-                  value={formData.customer || ""}
-                  onChange={handleChange}
-                  className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  /> */}
-              
-<select
-         name="customer"
-         required
-         value={formData.customer || ""}
-         onChange={handleChange}
-                   className="mt-1 block h-8  w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select Location</option>
-                    <option value="Online">Old</option>
-                    <option value="Cash">New</option>
-
-                  </select>
-              
+                  <input
+                    type="text"
+                    name="location"
+                    required
+                    value={formData.location || ""}
+                    onChange={handleChange}
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Amount
+                  </label>
+                  <input
+                    type="text"
+                    name="amount"
+                    required
+                    value={formData.amount || ""}
+                    onChange={handleChange}
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
                 </div>
               </div>
-              <button type="submit"   className="bg-blue-500 text-white py-2 px-4 rounded mt-4"
-  >Save Changes</button>
+              <button
+                type="submit"
+                className="bg-blue-500 text-white py-2 px-4 rounded mt-4"
+              >
+                Save Changes
+              </button>
             </form>
-            </div>
-          </Modal>
-        )}
-     
+          </div>
+        </Modal>
+      )}
+
       <Modal show={deleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
         <h2 className="text-lg font-bold">Confirm Delete</h2>
         <p>Are you sure you want to delete this customer?</p>

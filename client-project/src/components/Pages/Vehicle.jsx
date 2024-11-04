@@ -28,6 +28,8 @@ function Employeetask() {
   const [formData, setFormData] = useState({});
   const [dateFilter, setDateFilter] = useState({ start: null, end: null });
   const [selectedVehicles, setSelectedVehicles] = useState([]);
+  const [editVehicleDropdownOpen, setEditVehicleDropdownOpen] = useState(false);
+  const [editSelectedVehicles, setEditSelectedVehicles] = useState([]);
 
   const toggleDropdown = (index) => {
     setDropdownOpen(dropdownOpen === index ? null : index);
@@ -191,17 +193,41 @@ function Employeetask() {
   ];
 
   const handleVehicleChange = (vehicle) => {
-    setSelectedVehicles(prevVehicles => {
+    setSelectedVehicles((prevVehicles) => {
+      let newVehicles;
       if (vehicle === "") {
-        return [];
-      }
-      if (prevVehicles.includes(vehicle)) {
-        return prevVehicles.filter(v => v !== vehicle);
+        newVehicles = [];
+      } else if (prevVehicles.includes(vehicle)) {
+        newVehicles = prevVehicles.filter((v) => v !== vehicle);
       } else {
-        return [...prevVehicles, vehicle];
+        newVehicles = [...prevVehicles, vehicle];
       }
+      // Update vehicles state with the joined string
+      setVehicles([newVehicles.join(", ")]);
+      return newVehicles;
     });
     setDropdownOpen(null);
+  };
+
+    const handleEditVehicleChange = (vehicle) => {
+    setEditSelectedVehicles((prevVehicles) => {
+      let newVehicles;
+      if (vehicle === "") {
+        newVehicles = [];
+      } else if (prevVehicles.includes(vehicle)) {
+        newVehicles = prevVehicles.filter((v) => v !== vehicle);
+      } else {
+        newVehicles = [...prevVehicles, vehicle];
+      }
+
+      // Update formData with the new vehicles string
+      setFormData((prev) => ({
+        ...prev,
+        vehicle: newVehicles.join(", "),
+      }));
+
+      return newVehicles;
+    });
   };
 
   return (
@@ -271,13 +297,15 @@ function Employeetask() {
                     />
                   </td>
                   <td className="py-3 px-4 text-center text-xs">
-                    <div className="relative inline-block">
+                  <div className="relative inline-block">
                       <button
                         className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
                         type="button"
                         onClick={toggleDropdown}
                       >
-                        {selectedVehicles.length ? selectedVehicles.join(', ') : "Choose Vehicle(s)"}
+                        {selectedVehicles.length
+                          ? selectedVehicles.join(", ")
+                          : "Choose Vehicle(s)"}
                         <svg
                           className="w-2.5 h-2.5 ml-3"
                           aria-hidden="true"
@@ -297,7 +325,10 @@ function Employeetask() {
                       {dropdownOpen && (
                         <div className="absolute mt-2 w-full py-1 bg-white border border-gray-200 rounded shadow-md">
                           {vehicleOptions.map((option) => (
-                            <label key={option} className="flex items-center px-4 py-2 hover:bg-gray-100">
+                            <label
+                              key={option}
+                              className="flex items-center px-4 py-2 hover:bg-gray-100"
+                            >
                               <input
                                 type="checkbox"
                                 checked={selectedVehicles.includes(option)}
@@ -413,19 +444,40 @@ function Employeetask() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Vehicle</label>
-                  <select
-                    name="vehicle"
-                    required
-                    value={formData.vehicle || ""}
-                    onChange={handleChange}
-                    className="mt-1 block h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select vehicle</option>
-                    {vehicleOptions.map((option, index) => (
-                      <option key={index} value={option}>{option}</option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Vehicle
+                  </label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-left bg-white"
+                      onClick={() =>
+                        setEditVehicleDropdownOpen(!editVehicleDropdownOpen)
+                      }
+                    >
+                      {editSelectedVehicles.length
+                        ? editSelectedVehicles.join(", ")
+                        : "Choose Vehicle(s)"}
+                    </button>
+                    {editVehicleDropdownOpen && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg">
+                        {vehicleOptions.map((option) => (
+                          <label
+                            key={option}
+                            className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editSelectedVehicles.includes(option)}
+                              onChange={() => handleEditVehicleChange(option)}
+                              className="mr-2"
+                            />
+                            {option || "None"}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Description</label>

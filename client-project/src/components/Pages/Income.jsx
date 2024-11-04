@@ -472,7 +472,7 @@ function Employeetask() {
                   <input
                     type="date"
                     name="date"
-                    value={formData.date}
+                    value={formData.date||""}
                     onChange={handleChange}
                     className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />

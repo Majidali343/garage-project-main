@@ -11,6 +11,7 @@ import BarChart from "../BarChart";
 import { MdDelete } from "react-icons/md";
 import { FaRegEdit } from "react-icons/fa";
 import Modal from "../Modal";
+import { IoNotifications } from "react-icons/io5";
 
 function Employeetask() {
   const [dropdownOpen, setDropdownOpen] = useState(null);
@@ -20,10 +21,9 @@ function Employeetask() {
   const [locations, setLocations] = useState([""]);
   const [totals, setTotals] = useState([null]);
   const [pendings, setPendings] = useState([null]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [names, setNames] = useState([""]);
+  const [receiveDates, setReceiveDates] = useState([null]);
   const [taskData, setTaskData] = useState([]);
-
   const [filteredData, setFilteredData] = useState([]);
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
   const [searchName, setSearchName] = useState("");
@@ -31,37 +31,128 @@ function Employeetask() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(null);
   const [formData, setFormData] = useState({});
-  const [notificationDates, setNotificationDates] = useState([null]);
-  const [receiveDates, setReceiveDates] = useState([null]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Function to check for due notifications
+  const checkNotifications = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const notificationsToShow = filteredData.filter(item => {
+      if (!item.receiveDate) return false;
+      const receiveDate = new Date(item.receiveDate).toISOString().split('T')[0];
+      return receiveDate === today && item.payment_status !== 'Successful';
+    }).map(item => ({
+      id: item.id,
+      message: `Payment due for ${item.name} - Amount: ${item.pending}`,
+      date: item.receiveDate,
+      read: false
+    }));
+
+    setNotifications(prev => {
+      const existingIds = prev.map(n => n.id);
+      const newNotifications = notificationsToShow.filter(n => !existingIds.includes(n.id));
+      return [...prev, ...newNotifications];
+    });
+
+    // Update unread count
+    setUnreadCount(prev => prev + notificationsToShow.length);
+  };
+
+  // Notification bell click handler
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    if (showNotifications) {
+      // Mark all as read when closing
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+    }
+  };
+
+  // Add notification check to existing useEffect
+  useEffect(() => {
+    fetchData();
+    const notificationInterval = setInterval(checkNotifications, 60000); // Check every minute
+    return () => clearInterval(notificationInterval);
+  }, []);
+
+  const renderHeader = () => (
+    <header className="bg-white shadow p-7 flex items-center">
+      <h2 className="text-xl font-bold text-[#3d3d3d] flex-1">Pending</h2>
+      <div className="flex-1 flex justify-center ml-60"></div>
+      
+      {/* Notification Icon and Dropdown */}
+      <div className="relative">
+        <div 
+          className="w-8 h-8 cursor-pointer hover:bg-gray-100 rounded-full flex items-center justify-center"
+          onClick={toggleNotifications}  // Toggles dropdown visibility
+        >
+          <IoNotifications className="w-6 h-6 text-gray-600" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+              {unreadCount}
+            </span>
+          )}
+        </div>
+  
+        {/* Notifications Dropdown */}
+        {showNotifications && (
+          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-semibold">Notifications</h3>
+            </div>
+            <div className="divide-y">
+              {notifications.length > 0 ? (
+                notifications.map((notification, index) => (
+                  <div
+                    key={index}
+                    className={`p-4 hover:bg-gray-50 ${
+                      !notification.read ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <p className="text-sm text-gray-800">{notification.message}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(notification.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 text-center text-gray-500">
+                  No notifications
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Submit Button */}
+      <button
+        className="text-white bg-[#ea8732] ml-9 mr-9 border-0 py-1 px-2 w-28 focus:outline-none hover:bg-gray-200 rounded font-semibold text-sm"
+        onClick={handleSubmit}
+      >
+        Submit
+      </button>
+    </header>
+  );
+  
 
   const toggleDropdown = (index) => {
     setDropdownOpen(dropdownOpen === index ? null : index);
   };
 
   const handleDropdownChange = (value, index, type) => {
-    switch (type) {
-      case "paymentStatus":
-        const newStatuses = [...paymentStatuses];
-        newStatuses[index] = value;
-        setPaymentStatuses(newStatuses);
+    if (type === "paymentStatus") {
+      const newStatuses = [...paymentStatuses];
+      newStatuses[index] = value;
+      setPaymentStatuses(newStatuses);
 
-        // Set receive date when status changes to Successful
-        if (value === "Successful") {
-          const newReceiveDates = [...receiveDates];
-          newReceiveDates[index] = new Date();
-          setReceiveDates(newReceiveDates);
-        }
-
-        if (value === "Awaiting") {
-          const newNotificationDates = [...notificationDates];
-          newNotificationDates[index] = new Date(
-            Date.now() + 7 * 24 * 60 * 60 * 1000
-          );
-          setNotificationDates(newNotificationDates);
-        }
-        break;
-      default:
-        break;
+      // Set receive date when status changes to Successful
+      if (value === "Successful") {
+        const newReceiveDates = [...receiveDates];
+        newReceiveDates[index] = new Date();
+        setReceiveDates(newReceiveDates);
+      }
     }
     setDropdownOpen(null);
   };
@@ -72,26 +163,10 @@ function Employeetask() {
     setDates(newDates);
   };
 
-  const handleNotificationDateChange = (date, index) => {
-    const newNotificationDates = [...notificationDates];
-    newNotificationDates[index] = date;
-    setNotificationDates(newNotificationDates);
-  };
-
-  const downloadExcel = (id) => {
-    axios
-      .get(`http://77.37.49.209:5000/pending/getexcel/${id}`, {
-        responseType: "blob",
-      })
-      .then((response) => {
-        const blob = new Blob([response.data], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-        saveAs(blob, "data.xlsx");
-      })
-      .catch((error) => {
-        console.error("There was an error downloading the Excel file!", error);
-      });
+  const handleReceiveDateChange = (date, index) => {
+    const newReceiveDates = [...receiveDates];
+    newReceiveDates[index] = date;
+    setReceiveDates(newReceiveDates);
   };
 
   const handleAdvanceChange = (value, index) => {
@@ -119,35 +194,37 @@ function Employeetask() {
   };
 
   const handleSubmit = async () => {
+    // Format the dates properly
+    const formattedReceiveDates = receiveDates.map(date => 
+      date ? date.toISOString().split('T')[0] : null
+    );
+  
     const formData = {
       names,
-      dates,
+      dates: dates.map(date => date.toISOString().split('T')[0]),
       advances,
       paymentStatuses,
       locations,
       totals,
       pendings,
-      notificationDates,
-      receiveDates,
+      receiveDates: formattedReceiveDates  // Use the formatted dates
     };
-
+  
     try {
-      const result = await fetch(
-        "http://77.37.49.209:5000/pending/post/E-pending",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      fetchData();
+      const result = await fetch("http://77.37.49.209:5000/pending/post/E-pending", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+  
+      await fetchData();
     } catch (error) {
       console.error("Error posting data:", error);
     }
   };
+  
 
   const fetchData = async () => {
     try {
@@ -266,9 +343,9 @@ function Employeetask() {
         [name]: value,
       };
 
-      // Update receive date when payment status changes to Successful
-      if (name === "payment_status" && value === "Successful") {
-        newData.receiveDate = new Date().toISOString().split("T")[0];
+      // Set receive date only if explicitly changed
+      if (name === "receiveDate") {
+        newData.receiveDate = value;
       }
 
       return newData;
@@ -303,19 +380,7 @@ function Employeetask() {
         </div>
       </aside>
       <div className="flex-1 flex flex-col ml-64">
-        <header className="bg-white shadow p-7 flex items-center">
-          <h2 className="text-xl font-bold text-[#3d3d3d] flex-1">Pending</h2>
-          <div className="flex-1 flex justify-center ml-60"></div>
-          <div className="w-8 h-8 cursor-pointer hover:red-300">
-            <img src={Notification} alt="icon" />
-          </div>
-          <button
-            className="text-[#FFFF] bg-[#ea8732] ml-9 mr-9 border-0 py-1 px-2 w-28 focus:outline-none hover:bg-gray-200 rounded font-semibold text-sm"
-            onClick={handleSubmit}
-          >
-            Submit
-          </button>
-        </header>
+      {renderHeader()}
         <div className="bg-white shadow p-10 flex items-center justify-center">
           <div className="filters">
             <input
@@ -376,9 +441,6 @@ function Employeetask() {
                   </th>
                   <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
                     Payment Status
-                  </th>
-                  <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
-                    Notification Date
                   </th>
                   <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
                     Receive Date
@@ -482,7 +544,7 @@ function Employeetask() {
                         {dropdownOpen === index && (
                           <div className="absolute mt-2 bg-white border border-gray-300 rounded shadow-lg">
                             <ul className="list-none m-0 p-0">
-                              {["Pending", "Awaiting", "Successful"].map(
+                              {["Pending", "Successful"].map(
                                 (status, i) => (
                                   <li
                                     key={i}
@@ -505,31 +567,14 @@ function Employeetask() {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center text-xs">
-                      {paymentStatuses[index] === "Awaiting" && (
-                        <DatePicker
-                          selected={notificationDates[index]}
-                          onChange={(date) =>
-                            handleNotificationDateChange(date, index)
-                          }
-                          className="w-full py-1 px-2 border rounded"
-                          placeholderText="Select notification date"
-                        />
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      {paymentStatuses[index] === "Successful" &&
-                        receiveDates[index] &&
-                        new Date(receiveDates[index])
-                          .toLocaleString("en-GB", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })
-                          .replace(/\//g, "-")
-                          .replace(",", "")}
+                      <DatePicker
+                        selected={receiveDates[index]}
+                        onChange={(date) =>
+                          handleReceiveDateChange(date, index)
+                        }
+                        className="w-full py-1 px-2 border rounded"
+                        placeholderText="Select receive date"
+                      />
                     </td>
                   </tr>
                 ))}
@@ -567,21 +612,6 @@ function Employeetask() {
                     <td className="py-3 px-6 text-center text-xs">
                       {pending.payment_status}
                     </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      {pending.notificationDate &&
-                        new Date(pending.notificationDate)
-                          .toLocaleString("en-GB", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })
-                          .replace(/\//g, "-")
-                          .replace(",", "")}
-                    </td>
-
                     <td className="py-3 px-6 text-center text-xs">
                       {pending.receiveDate &&
                         new Date(pending.receiveDate)
@@ -706,20 +736,18 @@ function Employeetask() {
                   />
                 </div>
 
-                {formData.payment_status === "Successful" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Receive Date
-                    </label>
-                    <input
-                      type="date"
-                      name="receiveDate"
-                      value={formData.receiveDate || ""}
-                      onChange={handleChange}
-                      className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Receive Date
+                  </label>
+                  <input
+                    type="date"
+                    name="receiveDate"
+                    value={formData.receiveDate || ""}
+                    onChange={handleChange}
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
               </div>
 
               <div>
@@ -735,24 +763,9 @@ function Employeetask() {
                 >
                   <option value="">Select Payment Status</option>
                   <option value="Pending">Pending</option>
-                  <option value="Awaiting">Awaiting</option>
                   <option value="Successful">Successful</option>
                 </select>
               </div>
-              {formData.payment_status === "Awaiting" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Notification Date
-                  </label>
-                  <input
-                    type="date"
-                    name="notificationDate"
-                    value={formData.notificationDate || ""}
-                    onChange={handleChange}
-                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              )}
 
               <button
                 type="submit"
