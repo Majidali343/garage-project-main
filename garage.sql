@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Nov 03, 2024 at 06:38 PM
+-- Generation Time: Nov 17, 2024 at 08:05 PM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -90,18 +90,20 @@ CREATE TABLE `employee_task` (
   `task` varchar(50) NOT NULL,
   `date` varchar(255) NOT NULL,
   `charges` varchar(255) NOT NULL,
-  `work_hours` int(11) NOT NULL
+  `work_hours` int(11) NOT NULL,
+  `bill_number` int(11) NOT NULL,
+  `income_status` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `employee_task`
 --
 
-INSERT INTO `employee_task` (`id`, `name`, `company`, `location`, `task`, `date`, `charges`, `work_hours`) VALUES
-(5, 'ass', 'asdas', 'asasdasd', 'asdasd', '2024-11-03', '2309', 2),
-(6, 'ass', 'asdas', 'asasdasd', 'asdasd', '2024-10-04', '24535', 0),
-(7, 'ass', 'asdas', 'asasdasd', 'asdasa', '2024-09-13T15:11:25.000Z', '4245', 0),
-(8, 'mnsh', 'qwwr', 'udnscn c', 'oiopi', '2024-11-03', '12', 2);
+INSERT INTO `employee_task` (`id`, `name`, `company`, `location`, `task`, `date`, `charges`, `work_hours`, `bill_number`, `income_status`) VALUES
+(5, 'ass', 'asdas', 'asasdasd', 'asdasd', '2024-11-03', '2309', 2, 122324, 'Received'),
+(6, 'ass', 'asdas', 'asasdasd', 'asdasd', '2024-10-04', '24535', 3, 465634, 'Received'),
+(8, 'mnsh', 'qwwr', 'udnscn c', 'oiopi', '2024-11-03', '12', 2, 23412, 'Pending'),
+(9, 'Muhammad', 'ASdert', 'longitude and latitude', 'wrety', '2024-11-16', '12', 3, 1222345, 'Pending');
 
 -- --------------------------------------------------------
 
@@ -141,18 +143,19 @@ CREATE TABLE `income` (
   `description` varchar(100) NOT NULL,
   `date` varchar(255) NOT NULL,
   `salary` int(50) NOT NULL,
-  `salary_status` varchar(30) NOT NULL
+  `salary_status` varchar(30) NOT NULL,
+  `income_status` varchar(255) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `income`
 --
 
-INSERT INTO `income` (`id`, `name`, `description`, `date`, `salary`, `salary_status`) VALUES
-(1, 'asdasd', 'asdasd', '2024-09-03T12:50:51.000Z', 234234, 'online'),
-(2, 'asdasd', 'asdasd', '2024-09-06', 234234, 'online'),
-(4, 'asd', 'asdas', '2024-09-04T15:56:54.553Z', 342, 'cash'),
-(5, 'asd', 'asdd', '2024-11-03T13:00:46.841Z', 33, 'cash');
+INSERT INTO `income` (`id`, `name`, `description`, `date`, `salary`, `salary_status`, `income_status`) VALUES
+(1, 'asdasd', 'asdasd', '2024-09-03T12:50:51.000Z', 234234, 'online', 'Pending'),
+(2, 'asdasd', 'asdasd', '2024-09-06', 234234, 'online', 'Pending'),
+(4, 'asd', 'asdas', '2024-09-04T15:56:54.553Z', 342, 'cash', 'Pending'),
+(5, 'asd', 'asdd', '2024-11-03T13:00:46.841Z', 33, 'cash', 'Pending');
 
 -- --------------------------------------------------------
 
@@ -171,16 +174,16 @@ CREATE TABLE `invoice` (
   `amount` varchar(255) NOT NULL,
   `pending` int(50) NOT NULL,
   `project_status` varchar(20) NOT NULL,
-  `time` time NOT NULL
+  `invoices_num` int(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `invoice`
 --
 
-INSERT INTO `invoice` (`id`, `name`, `vehicle`, `description`, `Location`, `date`, `advance`, `amount`, `pending`, `project_status`, `time`) VALUES
-(1, 'asd', 'Crane: 50-Ton', '234234', '234234', '2024-09-05T16:04:16.000Z', 23432, '123', 234234, 'Pending', '00:00:00'),
-(2, 'Dive Sol', 'Forklift: 5-Ton', 'fix solutions', 'usa', '2024-11-03T15:05:27.461Z', 499, '3,000', 2501, 'Pending', '00:00:00');
+INSERT INTO `invoice` (`id`, `name`, `vehicle`, `description`, `Location`, `date`, `advance`, `amount`, `pending`, `project_status`, `invoices_num`) VALUES
+(1, 'asd', 'Crane: 50-Ton', '234234', '234234', '2024-09-05T16:04:16.000Z', 23432, '123', 234234, 'Pending', 1234354),
+(2, 'Dive Sol', 'Forklift: 5-Ton', 'fix solutions', 'usa', '2024-11-03T15:05:27.461Z', 499, '123', 2501, 'Pending', 214953);
 
 -- --------------------------------------------------------
 
@@ -311,7 +314,7 @@ ALTER TABLE `employeesalaary`
 -- AUTO_INCREMENT for table `employee_task`
 --
 ALTER TABLE `employee_task`
-  MODIFY `id` int(10) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(10) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `expenses`
