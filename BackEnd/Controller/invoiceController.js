@@ -36,6 +36,7 @@ exports.postdata = async (req, res) => {
       advances,
       pendings,
       projectStatuses,
+      invoices_num,
     } = req.body;
 
     // Ensure all required fields are present
@@ -48,14 +49,15 @@ exports.postdata = async (req, res) => {
       !amounts ||
       !advances ||
       !pendings ||
-      !projectStatuses
+      !projectStatuses||
+      !invoices_num
     ) {
       return res.status(400).json({ Message: "All fields are required" });
     }
 
     // Execute the query
     const query =
-      " INSERT INTO `invoice`(`name`, `vehicle`, `description`,`location` ,`date`, `amount`,`advance`, `pending`, `project_status`)  VALUES (?,?,?,?,?,?,?,?,?)";
+      " INSERT INTO `invoice`(`name`, `vehicle`, `description`,`location` ,`date`, `amount`,`advance`, `pending`, `invoices_num`, `project_status`)  VALUES (?,?,?,?,?,?,?,?,?,?)";
     await connectDB.query(query, [
       names,
       vehicles,
@@ -66,6 +68,7 @@ exports.postdata = async (req, res) => {
       advances,
       pendings,
       projectStatuses,
+      invoices_num,
     ]);
 
     // Send success response
@@ -125,11 +128,12 @@ exports.updatedata = async (req, res) => {
     advance,
     pending,
     project_status,
+    invoices_num,
   } = req.body;
 
   const query = `
             UPDATE invoice
-            SET name = ?, vehicle = ?, description = ?, Location = ?, date = ?, amount = ?, advance = ?, pending = ? , project_status = ?
+            SET name = ?, vehicle = ?, description = ?, Location = ?, date = ?, amount = ?, advance = ?, pending = ? , project_status = ?, invoices_num = ?
             WHERE id = ?
         `;
 
@@ -145,6 +149,7 @@ exports.updatedata = async (req, res) => {
       advance,
       pending,
       project_status,
+      invoices_num,
       id,
     ],
     (err, results) => {

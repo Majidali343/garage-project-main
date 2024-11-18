@@ -1,239 +1,157 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import Logo from "../Pages/images/logo.jpeg";
-import Notification from "../Pages/images/Notification.png";
+import Notification from "./images/Notification.png";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import axios from "axios";
-import { saveAs } from "file-saver";
 import Navigation from "./Navigation";
-import BarChart from "../BarChart";
 import { MdDelete } from "react-icons/md";
 import { FaRegEdit } from "react-icons/fa";
 import Modal from "../Modal";
-import { IoNotifications } from "react-icons/io5";
+import BarChart from "../BarChart";
+import TaskMetricsChart from "./TaskMetricChart";
 
 function Employeetask() {
   const [dropdownOpen, setDropdownOpen] = useState(null);
-  const [dates, setDates] = useState([new Date()]);
-  const [advances, setAdvances] = useState([null]);
-  const [paymentStatuses, setPaymentStatuses] = useState([null]);
-  const [locations, setLocations] = useState([""]);
-  const [totals, setTotals] = useState([null]);
-  const [pendings, setPendings] = useState([null]);
-  const [names, setNames] = useState([""]);
-  const [receiveDates, setReceiveDates] = useState([null]);
-  const [taskData, setTaskData] = useState([]);
+  const [taskdata, setTaskdata] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
   const [searchName, setSearchName] = useState("");
+  const [searchCompany, setSearchCompany] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState(null);
-  const [formData, setFormData] = useState({});
-  const [notifications, setNotifications] = useState([]);
+  const [currentTask, setCurrentTask] = useState(null);
+  const [incomeDropdownOpen, setIncomeDropdownOpen] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState("Choose Status");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    location: "",
+    company: "",
+    task: "",
+    work_hours: "",
+    bill_number: "",
+    date: new Date(),
+    charges: "",
+    task_status: "",
+    income_status: "",
+  });
 
-  // Function to check for due notifications
-  const checkNotifications = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const notificationsToShow = filteredData.filter(item => {
-      if (!item.receiveDate) return false;
-      const receiveDate = new Date(item.receiveDate).toISOString().split('T')[0];
-      return receiveDate === today && item.payment_status !== 'Successful';
-    }).map(item => ({
-      id: item.id,
-      message: `Payment due for ${item.name} - Amount: ${item.pending}`,
-      date: item.receiveDate,
-      read: false
-    }));
+  const [form, setForm] = useState({});
 
-    setNotifications(prev => {
-      const existingIds = prev.map(n => n.id);
-      const newNotifications = notificationsToShow.filter(n => !existingIds.includes(n.id));
-      return [...prev, ...newNotifications];
-    });
-
-    // Update unread count
-    setUnreadCount(prev => prev + notificationsToShow.length);
+  const toggleIncomeDropdown = () => {
+    setIncomeDropdownOpen(!incomeDropdownOpen);
   };
 
-  // Notification bell click handler
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-    if (showNotifications) {
-      // Mark all as read when closing
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
-    }
-  };
-
-  // Add notification check to existing useEffect
   useEffect(() => {
-    fetchData();
-    const notificationInterval = setInterval(checkNotifications, 60000); // Check every minute
-    return () => clearInterval(notificationInterval);
-  }, []);
+    const pending = filteredData.filter(
+      (task) => task.income_status === "Pending" && task.charges
+    );
+    setPendingPayments(pending);
+  }, [filteredData]);
 
-  const renderHeader = () => (
-    <header className="bg-white shadow p-7 flex items-center">
-      <h2 className="text-xl font-bold text-[#3d3d3d] flex-1">Pending</h2>
-      <div className="flex-1 flex justify-center ml-60"></div>
-      
-      {/* Notification Icon and Dropdown */}
-      <div className="relative">
-        <div 
-          className="w-8 h-8 cursor-pointer hover:bg-gray-100 rounded-full flex items-center justify-center"
-          onClick={toggleNotifications}  // Toggles dropdown visibility
-        >
-          <IoNotifications className="w-6 h-6 text-gray-600" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-              {unreadCount}
-            </span>
-          )}
-        </div>
-  
-        {/* Notifications Dropdown */}
-        {showNotifications && (
-          <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold">Notifications</h3>
-            </div>
-            <div className="divide-y">
-              {notifications.length > 0 ? (
-                notifications.map((notification, index) => (
-                  <div
-                    key={index}
-                    className={`p-4 hover:bg-gray-50 ${
-                      !notification.read ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <p className="text-sm text-gray-800">{notification.message}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(notification.date).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <div className="p-4 text-center text-gray-500">
-                  No notifications
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Submit Button */}
-      <button
-        className="text-white bg-[#ea8732] ml-9 mr-9 border-0 py-1 px-2 w-28 focus:outline-none hover:bg-gray-200 rounded font-semibold text-sm"
-        onClick={handleSubmit}
-      >
-        Submit
-      </button>
-    </header>
-  );
-  
-
-  const toggleDropdown = (index) => {
-    setDropdownOpen(dropdownOpen === index ? null : index);
-  };
-
-  const handleDropdownChange = (value, index, type) => {
-    if (type === "paymentStatus") {
-      const newStatuses = [...paymentStatuses];
-      newStatuses[index] = value;
-      setPaymentStatuses(newStatuses);
-
-      // Set receive date when status changes to Successful
-      if (value === "Successful") {
-        const newReceiveDates = [...receiveDates];
-        newReceiveDates[index] = new Date();
-        setReceiveDates(newReceiveDates);
-      }
-    }
+  const handleWorkHoursChange = (hours) => {
+    setFormData((prev) => ({
+      ...prev,
+      work_hours: hours,
+    }));
     setDropdownOpen(null);
   };
 
-  const handleDateChange = (date, index) => {
-    const newDates = [...dates];
-    newDates[index] = date;
-    setDates(newDates);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    // For work_hours, ensure only numbers and decimal points are entered
+    if (name === "work_hours") {
+      const regex = /^\d*\.?\d*$/;
+      if (regex.test(value) || value === "") {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
-  const handleReceiveDateChange = (date, index) => {
-    const newReceiveDates = [...receiveDates];
-    newReceiveDates[index] = date;
-    setReceiveDates(newReceiveDates);
+  const handleDropdownChange = (value) => {
+    setPaymentStatus(value);
+    setFormData((prev) => ({
+      ...prev,
+      income_status: value,
+    }));
+    setIncomeDropdownOpen(false);
   };
 
-  const handleAdvanceChange = (value, index) => {
-    const newAdvances = [...advances];
-    newAdvances[index] = value;
-    setAdvances(newAdvances);
-  };
-
-  const handleLocationChange = (value, index) => {
-    const newLocations = [...locations];
-    newLocations[index] = value;
-    setLocations(newLocations);
-  };
-
-  const handleTotalChange = (value, index) => {
-    const newTotals = [...totals];
-    newTotals[index] = value;
-    setTotals(newTotals);
-  };
-
-  const handlePendingChange = (value, index) => {
-    const newPendings = [...pendings];
-    newPendings[index] = value;
-    setPendings(newPendings);
+  const handleDateChange = (date) => {
+    setFormData((prev) => ({
+      ...prev,
+      date: date,
+    }));
   };
 
   const handleSubmit = async () => {
-    // Format the dates properly
-    const formattedReceiveDates = receiveDates.map(date => 
-      date ? date.toISOString().split('T')[0] : null
-    );
-  
-    const formData = {
-      names,
-      dates: dates.map(date => date.toISOString().split('T')[0]),
-      advances,
-      paymentStatuses,
-      locations,
-      totals,
-      pendings,
-      receiveDates: formattedReceiveDates  // Use the formatted dates
-    };
-  
     try {
-      const result = await fetch("http://77.37.49.209:5000/pending/post/E-pending", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-  
+      const dataToSubmit = {
+        ...formData,
+        date: formData.date.toISOString().split("T")[0],
+        work_hours: parseFloat(formData.work_hours) || 0, // Convert to number and handle empty input
+      };
+
+      const response = await fetch(
+        "http://77.37.49.209:5000/employeetask/post/Etask",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dataToSubmit),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
       await fetchData();
+
+      // Clear form after successful submission
+      setFormData({
+        name: "",
+        location: "",
+        company: "",
+        task: "",
+        work_hours: "",
+        bill_number: "",
+        date: new Date(),
+        charges: "",
+        task_status: "",
+        income_status: "",
+      });
     } catch (error) {
       console.error("Error posting data:", error);
     }
   };
-  
 
   const fetchData = async () => {
     try {
       const response = await fetch(
-        "http://77.37.49.209:5000/pending/get/E-pending"
+        "http://77.37.49.209:5000/employeetask/get/Etask"
       );
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
       const data = await response.json();
-      setTaskData(data.rows);
-      setFilteredData(data.rows);
+      // Only show received payments
+      const receivedPayments = data.rows.filter(
+        (task) => task.income_status === "Pending"
+      );
+      setTaskdata(receivedPayments);
+      setFilteredData(receivedPayments);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -245,147 +163,226 @@ function Employeetask() {
 
   useEffect(() => {
     filterData();
-  }, [dateFilter, searchName]);
+  }, [dateFilter, searchName, searchCompany, taskdata, statusFilter]);
 
   const resetFilters = () => {
     setDateFilter({ start: "", end: "" });
     setSearchName("");
-    setFilteredData(taskData);
+    setSearchCompany("");
+    setStatusFilter("all");
+    setFilteredData(taskdata);
   };
 
   const filterData = () => {
-    let data = taskData;
+    let data = taskdata;
 
+    // Apply date filter
     if (dateFilter.start && dateFilter.end) {
       data = data.filter(
-        (invoice) =>
-          invoice.date >= dateFilter.start && invoice.date <= dateFilter.end
+        (task) => task.date >= dateFilter.start && task.date <= dateFilter.end
       );
     }
 
+    // Apply name filter
     if (searchName) {
-      data = data.filter((invoice) =>
-        invoice.name.toLowerCase().includes(searchName.toLowerCase())
+      data = data.filter((task) =>
+        task.name.toLowerCase().includes(searchName.toLowerCase())
       );
+    }
+
+    // Apply company filter
+    if (searchCompany) {
+      data = data.filter((task) =>
+        task.company.toLowerCase().includes(searchCompany.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      data = data.filter((task) => task.income_status === statusFilter);
     }
 
     setFilteredData(data);
   };
 
-  const checkPendingPayments = () => {
-    const today = new Date();
-    filteredData.forEach(async (pending) => {
-      if (
-        pending.payment_status === "Awaiting" &&
-        new Date(pending.notificationDate) <= today
-      ) {
-        const updatedPending = {
-          ...pending,
-          payment_status: "Pending",
-          date: today.toISOString().split("T")[0],
-        };
-
-        try {
-          await fetch(`http://77.37.49.209:5000/pending/update/${pending.id}`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(updatedPending),
-          });
-        } catch (error) {
-          console.error("Error updating pending payment:", error);
-        }
-      }
-    });
-
-    fetchData();
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(checkPendingPayments, 24 * 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const chartLabels = filteredData.map((item) => item.date);
-  const chartData = filteredData.map((item) => item.total);
-
-  const handleEdit = (pending) => {
-    setCurrentStatus(pending);
-    setFormData(pending);
+  const handleEdit = (task) => {
+    const editableTask = {
+      ...task,
+      date: task.date || "", // Ensure date is not null
+      income_status: task.income_status || "", // Ensure income_status is not null
+    };
+    setCurrentTask(editableTask);
+    setForm(editableTask);
     setEditModalOpen(true);
   };
 
-  const handleDelete = (pending) => {
-    setCurrentStatus(pending);
+  const chartLabels = filteredData.map((item) => item.name);
+  const chartData = filteredData.map((item) => item.total);
+
+  const handleDelete = (task) => {
+    setCurrentTask(task);
     setDeleteModalOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`http://77.37.49.209:5000/pending/delete/${currentStatus.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://77.37.49.209:5000/employeetask/delete/${currentTask.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
       setDeleteModalOpen(false);
-      fetchData();
+      await fetchData();
     } catch (error) {
-      console.error("Error deleting customer:", error);
+      console.error("Error deleting task:", error);
     }
   };
 
-  // Modify handleChange to handle receiveDate changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => {
-      const newData = {
-        ...prevData,
-        [name]: value,
-      };
-
-      // Set receive date only if explicitly changed
-      if (name === "receiveDate") {
-        newData.receiveDate = value;
+    if (name === "work_hours") {
+      const regex = /^\d*\.?\d*$/;
+      if (regex.test(value) || value === "") {
+        setForm((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
       }
-
-      return newData;
-    });
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleSubmitChange = async (e) => {
     e.preventDefault();
 
     try {
-      await fetch(`http://77.37.49.209:5000/pending/update/${currentStatus.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      // Create a copy of the form data to clean up before sending
+      const updatedData = {
+        ...form,
+        // Ensure all required fields are included and properly formatted
+        income_status: form.income_status || currentTask.income_status, // Use existing status if not changed
+        work_hours: parseFloat(form.work_hours) || form.work_hours, // Convert to number if possible
+        date: form.date || currentTask.date, // Use existing date if not changed
+      };
+
+      const response = await fetch(
+        `http://77.37.49.209:5000/employeetask/update/${currentTask.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedData),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
 
       setEditModalOpen(false);
-      fetchData();
+      await fetchData(); // Refresh the data after successful update
     } catch (error) {
-      console.error("Error updating customer data:", error);
+      console.error("Error updating task data:", error);
     }
   };
 
+  const renderNotifications = () => {
+    if (!showNotifications || pendingPayments.length === 0) return null;
+
+    return (
+      <div className="absolute right-0 mt-2 w-96 z-50">
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto">
+          {pendingPayments.map((payment, index) => (
+            <div
+              key={index}
+              className="p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <img src={Notification} alt="" className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="ml-3 w-full">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm font-medium text-gray-900">
+                      Pending Payment
+                    </p>
+                    <p className="text-sm text-gray-500">{payment.date}</p>
+                  </div>
+                  <div className="mt-1">
+                    <p className="text-sm text-gray-600">
+                      {payment.company} has a pending payment
+                    </p>
+                    <div className="mt-1 flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        Task: {payment.task}
+                      </span>
+                      <span className="text-sm font-medium text-orange-600">
+                        ${payment.charges}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="bg-gray-100 flex">
+    <div className="bg-gray-100 h-screen flex">
       <aside className="w-64 bg-white text-white flex-shrink-0 fixed h-full">
         <div className="p-6">
           <img className="w-24 h-24 text-white p-2" src={Logo} alt="Logo" />
           <Navigation />
         </div>
       </aside>
+
       <div className="flex-1 flex flex-col ml-64">
-      {renderHeader()}
-        <div className="bg-white shadow p-10 flex items-center justify-center">
-          <div className="filters">
+        <header className="bg-white shadow p-7">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-[#3d3d3d]">Pending</h2>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <div
+                  className="w-8 h-8 cursor-pointer hover:bg-gray-200 rounded-full flex items-center justify-center"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                >
+                  <img
+                    src={Notification}
+                    alt="Notification Icon"
+                    className="w-6 h-6"
+                  />
+                  {pendingPayments.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                      {pendingPayments.length}
+                    </span>
+                  )}
+                </div>
+                {renderNotifications()}
+              </div>
+            </div>
+          </div>
+        </header>
+        <div className="bg-white shadow p-10 flex flex-col items-center justify-center space-y-4">
+          <div className="filters flex items-center justify-center w-full">
             <input
               type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={dateFilter.start}
               onChange={(e) =>
                 setDateFilter({ ...dateFilter, start: e.target.value })
@@ -394,7 +391,7 @@ function Employeetask() {
             />
             <input
               type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={dateFilter.end}
               onChange={(e) =>
                 setDateFilter({ ...dateFilter, end: e.target.value })
@@ -403,259 +400,121 @@ function Employeetask() {
             />
             <input
               type="text"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              placeholder="Search Customer"
+              placeholder="Search Employee"
+            />
+            <input
+              type="text"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
+              value={searchCompany}
+              onChange={(e) => setSearchCompany(e.target.value)}
+              placeholder="Search company"
             />
             <button
               onClick={resetFilters}
-              className="bg-[#ea8732] text-white px-6 py-1 rounded-md"
+              className="bg-[#ea8732] text-white px-6 py-1 rounded-md space-x-4 ms-3"
             >
               Reset
             </button>
           </div>
         </div>
-        <div className="flex-1 p-6 flex justify-center overflow-y-auto h-screen">
-          <div className="overflow-x-auto w-full max-w-4xl h-96">
-            <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="p-6 space-y-6">
+          {/* Table Section */}
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
               <thead>
                 <tr>
                   <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-left">
-                    Name
+                    Employee
                   </th>
                   <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-left">
-                    Location
+                    Company
                   </th>
                   <th className="py-3 px-10 bg-gray-200 text-[#3d3d3d] text-center">
-                    Date
+                    Location
                   </th>
-                  <th className="py-3 px-4 bg-gray-200 text-[#3d3d3d] text-center">
-                    Advance
+                  <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-center">
+                    Task
                   </th>
-                  <th className="py-3 px-4 bg-gray-200 text-[#3d3d3d] text-center">
-                    Pending
-                  </th>
-                  <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
-                    Total
+                  <th className="py-3 px-8 bg-gray-200 text-[#3d3d3d] text-center">
+                    Work Hours
                   </th>
                   <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
+                    Bill Number
+                  </th>
+                  <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
+                    Date
+                  </th>
+                  <th className="py-3 px-6 bg-gray-200 text-[#3d3d3d] text-center">
+                    Charges
+                  </th>
+                  <th className="py-3 px-6 bg-gray-200 text-[#3d3d3d] text-center">
                     Payment Status
-                  </th>
-                  <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
-                    Receive Date
-                  </th>
-                  <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
-                    Action
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {names.map((name, index) => (
-                  <tr key={index} className="text-[#3d3d3d] border-t">
-                    <td className="py-3 px-4 text-left text-xs">
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => {
-                          const newNames = [...names];
-                          newNames[index] = e.target.value;
-                          setNames(newNames);
-                        }}
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="Enter Name"
-                      />
+                {/* Existing task data rows */}
+                {filteredData.map((task, index) => (
+                  <tr key={index} className="border-t">
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.name}
                     </td>
-                    <td className="py-3 px-4 text-left text-xs">
-                      <input
-                        type="text"
-                        value={locations[index]}
-                        onChange={(e) =>
-                          handleLocationChange(e.target.value, index)
-                        }
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="Enter Location"
-                      />
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.company}
                     </td>
-                    <td className="py-3 px-10 text-center text-xs">
-                      <DatePicker
-                        selected={dates[index]}
-                        onChange={(date) => handleDateChange(date, index)}
-                        className="w-full py-1 px-2 border rounded"
-                      />
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.location}
                     </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <input
-                        type="number"
-                        value={advances[index] || ""}
-                        onChange={(e) =>
-                          handleAdvanceChange(e.target.value, index)
-                        }
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="0"
-                      />
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.task}
                     </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <input
-                        type="number"
-                        value={pendings[index] || ""}
-                        onChange={(e) =>
-                          handlePendingChange(e.target.value, index)
-                        }
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="0"
-                      />
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.work_hours}
                     </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <input
-                        type="number"
-                        value={totals[index] || ""}
-                        onChange={(e) =>
-                          handleTotalChange(e.target.value, index)
-                        }
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="0"
-                      />
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.bill_number}
                     </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <div className="relative inline-block">
-                        <button
-                          className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
-                          type="button"
-                          onClick={() => toggleDropdown(index)}
-                        >
-                          {paymentStatuses[index] || "Choose Status"}
-                          <svg
-                            className="w-2.5 h-2.5 ml-3"
-                            aria-hidden="true"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 10 6"
-                          >
-                            <path
-                              stroke="currentColor"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="1.5"
-                              d="m1 1 4 4 4-4"
-                            />
-                          </svg>
-                        </button>
-                        {dropdownOpen === index && (
-                          <div className="absolute mt-2 bg-white border border-gray-300 rounded shadow-lg">
-                            <ul className="list-none m-0 p-0">
-                              {["Pending", "Successful"].map(
-                                (status, i) => (
-                                  <li
-                                    key={i}
-                                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                    onClick={() =>
-                                      handleDropdownChange(
-                                        status,
-                                        index,
-                                        "paymentStatus"
-                                      )
-                                    }
-                                  >
-                                    {status}
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.date}
                     </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <DatePicker
-                        selected={receiveDates[index]}
-                        onChange={(date) =>
-                          handleReceiveDateChange(date, index)
-                        }
-                        className="w-full py-1 px-2 border rounded"
-                        placeholderText="Select receive date"
-                      />
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.charges}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.income_status}
                     </td>
                   </tr>
                 ))}
 
-                {filteredData.map((pending, index) => (
-                  <tr key={`data-${index}`} className="border-t">
-                    <td className="py-3 px-6 text-left text-xs">
-                      {pending.name}
-                    </td>
-                    <td className="py-3 px-6 text-left text-xs">
-                      {pending.location}
-                    </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      {new Date(pending.date)
-                        .toLocaleString("en-GB", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: false,
-                        })
-                        .replace(/\//g, "-")
-                        .replace(",", "")}
-                    </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      {pending.advance}
-                    </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      {pending.pending}
-                    </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      {pending.total}
-                    </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      {pending.payment_status}
-                    </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      {pending.receiveDate &&
-                        new Date(pending.receiveDate)
-                          .toLocaleString("en-GB", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })
-                          .replace(/\//g, "-")
-                          .replace(",", "")}
-                    </td>
-                    <td className="py-3 px-6 text-center text-xs">
-                      <button
-                        onClick={() => handleEdit(pending)}
-                        className="text-blue-500 hover:text-blue-700 mr-2"
-                      >
-                        <FaRegEdit className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(pending)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <MdDelete className="h-5 w-5" />
-                      </button>
-                    </td>
+                {/* Adding 10 empty rows */}
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <tr key={index + taskdata.length} className="border-t">
+                    <td className="py-3 px-6 text-center text-xs">&nbsp;</td>
+                    <td className="py-3 px-6 text-center text-xs">&nbsp;</td>
+                    <td className="py-3 px-6 text-center text-xs">&nbsp;</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-        <div className="bg-white shadow flex items-center justify-center">
-          <BarChart chartData={chartData} chartLabels={chartLabels} />
+        {filteredData.length > 0 && (
+            <div className=" shadow rounded-lg p-4">
+              <div className="h-96">
+                <TaskMetricsChart data={filteredData} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Edit Modal */}
       {editModalOpen && (
         <Modal show={editModalOpen} onClose={() => setEditModalOpen(false)}>
           <div className="h-auto w-auto">
-            <h2 className="text-lg font-bold mb-4">Edit Customer</h2>
+            <h2 className="text-lg font-bold">Edit Task</h2>
             <form onSubmit={handleSubmitChange}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -665,10 +524,23 @@ function Employeetask() {
                   <input
                     type="text"
                     name="name"
-                    required
-                    value={formData.name || ""}
+                    value={form.name || ""}
                     onChange={handleChange}
+                    required
                     className="mt-1 block p-2 h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Company
+                  </label>
+                  <input
+                    type="text"
+                    name="company"
+                    value={form.company || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
@@ -678,10 +550,51 @@ function Employeetask() {
                   <input
                     type="text"
                     name="location"
-                    required
-                    value={formData.location || ""}
+                    value={form.location || ""}
                     onChange={handleChange}
+                    required
                     className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Task
+                  </label>
+                  <input
+                    type="text"
+                    name="task"
+                    value={form.task || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Working Hour
+                  </label>
+                  <input
+                    type="text"
+                    name="work_hours"
+                    value={form.work_hours || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Enter Hours"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Bill Number
+                  </label>
+                  <input
+                    type="text"
+                    name="bill_number"
+                    value={form.bill_number || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Enter Bill Number"
                   />
                 </div>
                 <div>
@@ -691,85 +604,45 @@ function Employeetask() {
                   <input
                     type="date"
                     name="date"
-                    value={formData.date || ""}
+                    value={form.date || ""}
                     onChange={handleChange}
-                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Advance
+                    Charges
                   </label>
+
                   <input
-                    type="number"
-                    name="advance"
-                    required
-                    value={formData.advance || ""}
-                    onChange={handleChange}
+                    type="text"
+                    name="charges"
                     className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Pending
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    name="pending"
-                    value={formData.pending || ""}
+                    value={form.charges || ""}
                     onChange={handleChange}
-                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Total
-                  </label>
-                  <input
-                    type="number"
-                    name="total"
                     required
-                    value={formData.total || ""}
-                    onChange={handleChange}
-                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Receive Date
+                    Income Status
                   </label>
-                  <input
-                    type="date"
-                    name="receiveDate"
-                    value={formData.receiveDate || ""}
+                  <select
+                    name="income_status"
+                    value={form.income_status || ""}
                     onChange={handleChange}
-                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
+                    className="mt-1 block h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Select Income Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Received">Received</option>
+                  </select>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Payment Status
-                </label>
-                <select
-                  name="payment_status"
-                  value={formData.payment_status || ""}
-                  onChange={handleChange}
-                  required
-                  className="mt-1 block h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="">Select Payment Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Successful">Successful</option>
-                </select>
-              </div>
-
               <button
                 type="submit"
-                className="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+                className="bg-blue-500 text-white py-2 px-4 rounded mt-4"
               >
                 Save Changes
               </button>
@@ -778,24 +651,21 @@ function Employeetask() {
         </Modal>
       )}
 
-      {/* Delete Confirmation Modal */}
       <Modal show={deleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
-        <h2 className="text-lg font-bold mb-4">Confirm Delete</h2>
+        <h2 className="text-lg font-bold">Confirm Delete</h2>
         <p>Are you sure you want to delete this customer?</p>
-        <div className="mt-4">
-          <button
-            onClick={handleConfirmDelete}
-            className="bg-red-500 text-white py-2 px-4 rounded mr-2 hover:bg-red-600"
-          >
-            Yes, Delete
-          </button>
-          <button
-            onClick={() => setDeleteModalOpen(false)}
-            className="bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
-          >
-            Cancel
-          </button>
-        </div>
+        <button
+          onClick={handleConfirmDelete}
+          className="bg-red-500 text-white py-2  px-4 rounded mt-4"
+        >
+          Yes, Delete
+        </button>
+        <button
+          onClick={() => setDeleteModalOpen(false)}
+          className="bg-gray-500 text-white py-2 px-4 rounded mt-4 ml-2"
+        >
+          Cancel
+        </button>
       </Modal>
     </div>
   );

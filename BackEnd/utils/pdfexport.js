@@ -29,10 +29,10 @@ const exportpdf = (res, data, filename) => {
     doc.text(`${row.name}`, 100, 120);
     doc.text(`Project Status:`, 300, 120);
     doc.text(`${row.project_status}`, 380, 120);
+    doc.text(`Invoice Number: ${row.invoices_num}`, 300, 135);
     doc.text(`Vehicle: ${row.vehicle}`, 50, 135);
     doc.text(`Location: ${row.Location}`, 50, 150);
     doc.text(`Date: ${row.date}`, 50, 165);
-    doc.text(`Time: ${row.time}`, 50, 180);
 });
 // Add some space before the table
   doc.moveDown(1);

@@ -22,6 +22,7 @@ function Employeetask() {
   const [advances, setAdvances] = useState([null]); // Default value for advance
   const [amounts, setAmounts] = useState([null]); // Default value for amount
   const [pendings, setPendings] = useState([null]); // Default value for pending
+  const [invoices_num, setInvoicesNum] = useState([null]); // Default value for invoice number
   const [names, setNames] = useState([""]); // State for names
   const [projectStatuses, setProjectStatuses] = useState([null]); // Default value for project statuses
   const [searchQuery, setSearchQuery] = useState(""); // State for search query
@@ -112,6 +113,12 @@ function Employeetask() {
     setPendings(newPendings);
   };
 
+  const handleinvoices_numChange = (value, index) => {
+    const newinvoices_num = [...invoices_num];
+    newinvoices_num[index] = value;
+    setInvoicesNum(newinvoices_num);
+  };
+
   const handleSubmit = async () => {
     const formData = {
       names,
@@ -123,6 +130,7 @@ function Employeetask() {
       advances,
       pendings,
       projectStatuses,
+      invoices_num,
     };
 
     try {
@@ -138,11 +146,11 @@ function Employeetask() {
       );
 
       if (!result.ok) {
-        throw new Error('Failed to post data');
+        throw new Error("Failed to post data");
       }
 
       fetchData(); // Refresh the data after successful submission
-      
+
       // Reset the form fields after successful submission
       setAmounts([null]);
       setNames([""]);
@@ -152,13 +160,12 @@ function Employeetask() {
       setDates([new Date()]);
       setAdvances([null]);
       setPendings([null]);
+      setInvoicesNum([""]);
       setProjectStatuses([null]);
-      
     } catch (error) {
       console.error("Error posting data:", error);
     }
   };
-
 
   const format12 = (time24h) => {
     const formattedTime = moment(time24h, "HH:mm:ss").format("h:mm A");
@@ -256,16 +263,19 @@ function Employeetask() {
     e.preventDefault();
 
     try {
-      const response = await fetch(`http://77.37.49.209:5000/invoice/update/${currentInvoice.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `http://77.37.49.209:5000/invoice/update/${currentInvoice.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to update data');
+        throw new Error("Failed to update data");
       }
 
       setEditModalOpen(false);
@@ -364,6 +374,9 @@ function Employeetask() {
                   </th>
                   <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
                     Amount Status
+                  </th>
+                  <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
+                    Invoice Number
                   </th>
                   <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-center">
                     Download Invoice
@@ -548,6 +561,19 @@ function Employeetask() {
                       )}
                     </div>
                   </td>
+                  <td className="py-3 px-4 text-center text-xs">
+                    <input
+                      type="text"
+                      placeholder="Invoice Number"
+                      className="w-full py-1 px-2 border rounded"
+                      value={invoices_num || ""}
+                      onChange={(e) => {
+                        const newinvoices_num = [...invoices_num];
+                        newinvoices_num = e.target.value;
+                        setInvoicesNum(newinvoices_num);
+                      }}
+                    />
+                  </td>
                 </tr>
                 {/* Empty rows */}
                 {filteredData.map((invoice, index) => (
@@ -579,6 +605,9 @@ function Employeetask() {
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
                       {invoice.project_status}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {invoice.invoices_num}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
                       {" "}
@@ -757,6 +786,21 @@ function Employeetask() {
                     <option value="Pending">Pending</option>
                     <option value="Complete">Complete</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Invoice Number
+                  </label>
+                  <input
+                    type="text"
+                    name="invoices_num"
+                    value={formData.invoices_num || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Enter Invoice Number"
+                  />
                 </div>
               </div>
               <button

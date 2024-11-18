@@ -1,101 +1,137 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import Logo from "../Pages/images/logo.jpeg";
-import Notification from "../Pages/images/Notification.png";
+import Notification from "./images/Notification.png";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import axios from "axios";
-import { saveAs } from "file-saver";
 import Navigation from "./Navigation";
-import BarChart from "../BarChart";
 import { MdDelete } from "react-icons/md";
 import { FaRegEdit } from "react-icons/fa";
 import Modal from "../Modal";
+import BarChart from "../BarChart";
+import TaskMetricsChart from "./TaskMetricChart";
 
 function Employeetask() {
   const [dropdownOpen, setDropdownOpen] = useState(null);
-  const [dates, setDates] = useState([new Date()]); // Default date for the first row
-  const [salaries, setSalaries] = useState([null]); // Default value for salary
-  const [salaryStatuses, setSalaryStatuses] = useState([null]); // Default value for salary statuses
-  const [descriptions, setDescriptions] = useState([""]); // State for descriptions
-  const [searchQuery, setSearchQuery] = useState(""); // State for search query
-  const [names, setNames] = useState([""]); // State for names
-  const [taskData, setTaskData] = useState([]);
-
+  const [taskdata, setTaskdata] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
   const [searchName, setSearchName] = useState("");
+  const [searchCompany, setSearchCompany] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [currentIncome, setCurrentIncome] = useState(null);
-  const [formData, setFormData] = useState({});
+  const [currentTask, setCurrentTask] = useState(null);
+  const [incomeDropdownOpen, setIncomeDropdownOpen] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState("Choose Status");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    location: "",
+    company: "",
+    task: "",
+    work_hours: "",
+    bill_number: "",
+    date: new Date(),
+    charges: "",
+    task_status: "",
+    income_status: "",
+  });
 
-  const toggleDropdown = (index) => {
-    setDropdownOpen(dropdownOpen === index ? null : index);
+  const [form, setForm] = useState({});
+
+  const toggleIncomeDropdown = () => {
+    setIncomeDropdownOpen(!incomeDropdownOpen);
   };
 
-  const handleDropdownChange = (value, index, type) => {
-    switch (type) {
-      case "salaryStatus":
-        const newStatuses = [...salaryStatuses];
-        newStatuses[index] = value;
-        setSalaryStatuses(newStatuses);
-        break;
-      default:
-        break;
+  useEffect(() => {
+    const pending = filteredData.filter(
+      (task) => task.income_status === "Pending" && task.charges
+    );
+    setPendingPayments(pending);
+  }, [filteredData]);
+
+  const handleWorkHoursChange = (hours) => {
+    setFormData((prev) => ({
+      ...prev,
+      work_hours: hours,
+    }));
+    setDropdownOpen(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    // For work_hours, ensure only numbers and decimal points are entered
+    if (name === "work_hours") {
+      const regex = /^\d*\.?\d*$/;
+      if (regex.test(value) || value === "") {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
     }
-    setDropdownOpen(null); // Close dropdown after selection
   };
 
-  const downloadExcel = (id) => {
-    axios
-      .get(`http://77.37.49.209:5000/income/getexcel/${id}`, {
-        responseType: "blob",
-      })
-      .then((response) => {
-        const blob = new Blob([response.data], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-        saveAs(blob, "data.xlsx");
-      })
-      .catch((error) => {
-        console.error("There was an error downloading the Excel file!", error);
-      });
+  const handleDropdownChange = (value) => {
+    setPaymentStatus(value);
+    setFormData((prev) => ({
+      ...prev,
+      income_status: value,
+    }));
+    setIncomeDropdownOpen(false);
   };
 
-  const handleDateChange = (date, index) => {
-    const newDates = [...dates];
-    newDates[index] = date;
-    setDates(newDates);
-  };
-
-  const handleDescriptionChange = (value, index) => {
-    const newDescriptions = [...descriptions];
-    newDescriptions[index] = value;
-    setDescriptions(newDescriptions);
+  const handleDateChange = (date) => {
+    setFormData((prev) => ({
+      ...prev,
+      date: date,
+    }));
   };
 
   const handleSubmit = async () => {
-    const formData = {
-      dates,
-      salaries,
-      salaryStatuses,
-      descriptions,
-      names,
-    };
-
     try {
-      const result = await fetch("http://77.37.49.209:5000/income/post/E-income", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+      const dataToSubmit = {
+        ...formData,
+        date: formData.date.toISOString().split("T")[0],
+        work_hours: parseFloat(formData.work_hours) || 0, // Convert to number and handle empty input
+      };
+
+      const response = await fetch(
+        "http://77.37.49.209:5000/employeetask/post/Etask",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(dataToSubmit),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
+      await fetchData();
+
+      // Clear form after successful submission
+      setFormData({
+        name: "",
+        location: "",
+        company: "",
+        task: "",
+        work_hours: "",
+        bill_number: "",
+        date: new Date(),
+        charges: "",
+        task_status: "",
+        income_status: "",
       });
-
-      fetchData();
-
-      // Optionally handle response or update state after successful POST
     } catch (error) {
       console.error("Error posting data:", error);
     }
@@ -103,10 +139,19 @@ function Employeetask() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("http://77.37.49.209:5000/income/get/E-income");
+      const response = await fetch(
+        "http://77.37.49.209:5000/employeetask/get/Etask"
+      );
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
       const data = await response.json();
-      setTaskData(data.rows);
-      setFilteredData(data.rows);
+      // Only show received payments
+      const receivedPayments = data.rows.filter(
+        (task) => task.income_status === "Received"
+      );
+      setTaskdata(receivedPayments);
+      setFilteredData(receivedPayments);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -118,111 +163,226 @@ function Employeetask() {
 
   useEffect(() => {
     filterData();
-  }, [dateFilter, searchName]);
+  }, [dateFilter, searchName, searchCompany, taskdata, statusFilter]);
 
   const resetFilters = () => {
     setDateFilter({ start: "", end: "" });
     setSearchName("");
-    setFilteredData(taskData); // Reset to original data
+    setSearchCompany("");
+    setStatusFilter("all");
+    setFilteredData(taskdata);
   };
 
   const filterData = () => {
-    let data = taskData;
+    let data = taskdata;
 
+    // Apply date filter
     if (dateFilter.start && dateFilter.end) {
       data = data.filter(
-        (invoice) =>
-          invoice.date >= dateFilter.start && invoice.date <= dateFilter.end
+        (task) => task.date >= dateFilter.start && task.date <= dateFilter.end
       );
     }
 
+    // Apply name filter
     if (searchName) {
-      data = data.filter((invoice) =>
-        invoice.name.toLowerCase().includes(searchName.toLowerCase())
+      data = data.filter((task) =>
+        task.name.toLowerCase().includes(searchName.toLowerCase())
       );
+    }
+
+    // Apply company filter
+    if (searchCompany) {
+      data = data.filter((task) =>
+        task.company.toLowerCase().includes(searchCompany.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      data = data.filter((task) => task.income_status === statusFilter);
     }
 
     setFilteredData(data);
   };
 
-  const chartLabels = filteredData.map((item) => item.date);
-  const chartData = filteredData.map((item) => item.salary);
+  const chartLabels = filteredData.map((item) => item.name);
+  const chartData = filteredData.map((item) => item.task);
 
-  const handleEdit = (income) => {
-    setCurrentIncome(income);
-    setFormData(income);
+  const handleEdit = (task) => {
+    const editableTask = {
+      ...task,
+      date: task.date || "", // Ensure date is not null
+      income_status: task.income_status || "", // Ensure income_status is not null
+    };
+    setCurrentTask(editableTask);
+    setForm(editableTask);
     setEditModalOpen(true);
   };
 
-  const handleDelete = (income) => {
-    setCurrentIncome(income);
+  const handleDelete = (task) => {
+    setCurrentTask(task);
     setDeleteModalOpen(true);
   };
 
   const handleConfirmDelete = async () => {
     try {
-      await fetch(`http://77.37.49.209:5000/income/delete/${currentIncome.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://77.37.49.209:5000/employeetask/delete/${currentTask.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+
       setDeleteModalOpen(false);
-      fetchData();
+      await fetchData();
     } catch (error) {
-      console.error("Error deleting Income:", error);
+      console.error("Error deleting task:", error);
     }
   };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    if (name === "work_hours") {
+      const regex = /^\d*\.?\d*$/;
+      if (regex.test(value) || value === "") {
+        setForm((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
+
   const handleSubmitChange = async (e) => {
     e.preventDefault();
 
     try {
-      await fetch(`http://77.37.49.209:5000/income/update/${currentIncome.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+      // Create a copy of the form data to clean up before sending
+      const updatedData = {
+        ...form,
+        // Ensure all required fields are included and properly formatted
+        income_status: form.income_status || currentTask.income_status, // Use existing status if not changed
+        work_hours: parseFloat(form.work_hours) || form.work_hours, // Convert to number if possible
+        date: form.date || currentTask.date, // Use existing date if not changed
+      };
+
+      const response = await fetch(
+        `http://77.37.49.209:5000/employeetask/update/${currentTask.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedData),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
 
       setEditModalOpen(false);
-      fetchData();
+      await fetchData(); // Refresh the data after successful update
     } catch (error) {
-      console.error("Error updating Income data:", error);
+      console.error("Error updating task data:", error);
     }
   };
 
+  const renderNotifications = () => {
+    if (!showNotifications || pendingPayments.length === 0) return null;
+
+    return (
+      <div className="absolute right-0 mt-2 w-96 z-50">
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto">
+          {pendingPayments.map((payment, index) => (
+            <div
+              key={index}
+              className="p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <img src={Notification} alt="" className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="ml-3 w-full">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm font-medium text-gray-900">
+                      Pending Payment
+                    </p>
+                    <p className="text-sm text-gray-500">{payment.date}</p>
+                  </div>
+                  <div className="mt-1">
+                    <p className="text-sm text-gray-600">
+                      {payment.company} has a pending payment
+                    </p>
+                    <div className="mt-1 flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        Task: {payment.task}
+                      </span>
+                      <span className="text-sm font-medium text-orange-600">
+                        ${payment.charges}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="bg-gray-100  flex">
+    <div className="bg-gray-100 h-screen flex">
       <aside className="w-64 bg-white text-white flex-shrink-0 fixed h-full">
         <div className="p-6">
           <img className="w-24 h-24 text-white p-2" src={Logo} alt="Logo" />
           <Navigation />
         </div>
       </aside>
+
       <div className="flex-1 flex flex-col ml-64">
-        <header className="bg-white shadow p-7 flex items-center">
-          <h2 className="text-xl font-bold text-[#3d3d3d] flex-1">Income</h2>
-          <div className="flex-1 flex justify-center ml-60"></div>
-          <div className="w-8 h-8 cursor-pointer hover:red-300">
-            <img src={Notification} alt="icon" />
+        <header className="bg-white shadow p-7">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-[#3d3d3d]">Income</h2>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <div
+                  className="w-8 h-8 cursor-pointer hover:bg-gray-200 rounded-full flex items-center justify-center"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                >
+                  <img
+                    src={Notification}
+                    alt="Notification Icon"
+                    className="w-6 h-6"
+                  />
+                  {pendingPayments.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                      {pendingPayments.length}
+                    </span>
+                  )}
+                </div>
+                {renderNotifications()}
+              </div>
+            </div>
           </div>
-          <button
-            className="text-[#FFFF] bg-[#ea8732] ml-9 mr-9 border-0 py-1 px-2 w-28 focus:outline-none hover:bg-gray-200 rounded font-semibold text-sm"
-            onClick={handleSubmit}
-          >
-            Submit
-          </button>
         </header>
-        <div className="bg-white shadow p-10 flex items-center justify-center">
-          <div className="filters">
+        <div className="bg-white shadow p-10 flex flex-col items-center justify-center space-y-4">
+          <div className="filters flex items-center justify-center w-full">
             <input
               type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={dateFilter.start}
               onChange={(e) =>
                 setDateFilter({ ...dateFilter, start: e.target.value })
@@ -231,7 +391,7 @@ function Employeetask() {
             />
             <input
               type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={dateFilter.end}
               onChange={(e) =>
                 setDateFilter({ ...dateFilter, end: e.target.value })
@@ -240,162 +400,97 @@ function Employeetask() {
             />
             <input
               type="text"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              placeholder="Search Customer"
+              placeholder="Search Employee"
+            />
+            <input
+              type="text"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
+              value={searchCompany}
+              onChange={(e) => setSearchCompany(e.target.value)}
+              placeholder="Search company"
             />
             <button
               onClick={resetFilters}
-              className="bg-[#ea8732] text-white px-6 py-1 rounded-md"
+              className="bg-[#ea8732] text-white px-6 py-1 rounded-md space-x-4 ms-3"
             >
               Reset
             </button>
           </div>
         </div>
-
-        <div className="flex-1 p-6 flex justify-center overflow-y-auto ">
-          <div className="overflow-x-auto w-full max-w-4xl h-96">
-            <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="p-6 space-y-6">
+          {/* Table Section */}
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
               <thead>
                 <tr>
                   <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-left">
-                    Company Name
+                    Employee
                   </th>
-                  <th className="py-3 px-4 bg-gray-200 text-[#3d3d3d] text-center">
-                    Description
+                  <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-left">
+                    Company
                   </th>
                   <th className="py-3 px-10 bg-gray-200 text-[#3d3d3d] text-center">
-                    Date
-                  </th>
-                  <th className="py-3 px-4 bg-gray-200 text-[#3d3d3d] text-center">
-                    Amount
+                    Location
                   </th>
                   <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-center">
-                    Amount Status
+                    Task
                   </th>
-                  <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
+                  <th className="py-3 px-8 bg-gray-200 text-[#3d3d3d] text-center">
+                    Work Hours
+                  </th>
+                  <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
+                    Bill Number
+                  </th>
+                  <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
+                    Date
+                  </th>
+                  <th className="py-3 px-6 bg-gray-200 text-[#3d3d3d] text-center">
+                    Charges
+                  </th>
+                  <th className="py-3 px-6 bg-gray-200 text-[#3d3d3d] text-center">
+                    Payment Status
+                  </th>
+                  {/* <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
                     Action
-                  </th>
-                  {/* <th className="py-3 px-12 bg-gray-200 text-[#3d3d3d] text-center">Download Data</th> */}
+                  </th> */}
                 </tr>
               </thead>
               <tbody>
-                {names.map((name, index) => (
-                  <tr key={index} className="text-[#3d3d3d] border-t">
-                    <td className="py-3 px-4 text-center text-xs">
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => {
-                          const newNames = [...names];
-                          newNames[index] = e.target.value;
-                          setNames(newNames);
-                        }}
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="Enter Name"
-                      />
-                    </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <input
-                        type="text"
-                        value={descriptions[index]}
-                        onChange={(e) =>
-                          handleDescriptionChange(e.target.value, index)
-                        }
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="Enter Description"
-                      />
-                    </td>
-                    <td className="py-3 px-10 text-center text-xs">
-                      <DatePicker
-                        selected={dates[index]}
-                        onChange={(date) => handleDateChange(date, index)}
-                        className="w-full py-1 px-2 border rounded"
-                      />
-                    </td>
-                    <td className="py-3 px-4 text-center text-xs">
-                      <input
-                        type="number"
-                        value={salaries[index] || ""}
-                        onChange={(e) => {
-                          const newSalaries = [...salaries];
-                          newSalaries[index] = e.target.value;
-                          setSalaries(newSalaries);
-                        }}
-                        className="w-full py-1 px-2 border rounded"
-                        placeholder="0"
-                      />
-                    </td>
-
-                    <td className="py-3 px-4 text-center text-xs">
-                      <div className="relative inline-block">
-                        <button
-                          className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
-                          type="button"
-                          onClick={() => toggleDropdown(index)}
-                        >
-                          {salaryStatuses[index] || "Choose Status"}
-                          <svg
-                            className="w-2.5 h-2.5 ml-3"
-                            aria-hidden="true"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 10 6"
-                          >
-                            <path
-                              stroke="currentColor"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="1.5"
-                              d="m1 1 4 4 4-4"
-                            />
-                          </svg>
-                        </button>
-                        {dropdownOpen === index && (
-                          <div className="absolute mt-2 bg-white border border-gray-300 rounded shadow-lg">
-                            <ul className="list-none m-0 p-0">
-                              {["online", "cash"].map((status, i) => (
-                                <li
-                                  key={i}
-                                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                  onClick={() =>
-                                    handleDropdownChange(
-                                      status,
-                                      index,
-                                      "salaryStatus"
-                                    )
-                                  }
-                                >
-                                  {status}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {/* Render rows based on taskData */}
+                {/* Existing task data rows */}
                 {filteredData.map((task, index) => (
                   <tr key={index} className="border-t">
-                    <td className="py-3 px-6 text-left text-xs">{task.name}</td>
                     <td className="py-3 px-6 text-center text-xs">
-                      {task.description}
+                      {task.name}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.company}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.location}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.task}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.work_hours}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.bill_number}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
                       {task.date}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
-                      {task.salary}
+                      {task.charges}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
-                      {task.salary_status}
+                      {task.income_status}
                     </td>
-
-                    <td className=" text-center text-xs">
+                    {/* <td className=" text-center text-xs">
                       <button
                         onClick={() => handleEdit(task)}
                         className="text-blue-500  hover:text-blue-700"
@@ -408,35 +503,35 @@ function Employeetask() {
                       >
                         <MdDelete className="h-5 w-6" />
                       </button>
-                    </td>
-                    {/* <td className="py-3 px-6 text-center text-xs"> <button className='bg-[#ea8732] p-1 rounded-md text-white font-medium'   onClick={() => downloadExcel(task.id)}>
-      Download Excel</button></td> */}
+                    </td> */}
                   </tr>
                 ))}
 
-                {/* Add 10 empty rows */}
-                {[...Array(20)].map((_, index) => (
-                  <tr key={index} className="border-t">
-                    <td className="py-3 px-6 text-left text-xs"></td>
-                    <td className="py-3 px-6 text-center text-xs"></td>
-                    <td className="py-3 px-6 text-center text-xs"></td>
-                    <td className="py-3 px-6 text-center text-xs"></td>
-                    <td className="py-3 px-6 text-center text-xs"></td>
-                    <td className="py-3 px-6 text-center text-xs"></td>
+                {/* Adding 10 empty rows */}
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <tr key={index + taskdata.length} className="border-t">
+                    <td className="py-3 px-6 text-center text-xs">&nbsp;</td>
+                    <td className="py-3 px-6 text-center text-xs">&nbsp;</td>
+                    <td className="py-3 px-6 text-center text-xs">&nbsp;</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
-        <div className="bg-white shadow flex items-center justify-center ">
-          <BarChart chartData={chartData} chartLabels={chartLabels} />
+        {filteredData.length > 0 && (
+            <div className=" shadow rounded-lg p-4">
+              <div className="h-96">
+                <TaskMetricsChart data={filteredData} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {editModalOpen && (
         <Modal show={editModalOpen} onClose={() => setEditModalOpen(false)}>
           <div className="h-auto w-auto">
-            <h2 className="text-lg font-bold">Edit Customer</h2>
+            <h2 className="text-lg font-bold">Edit Task</h2>
             <form onSubmit={handleSubmitChange}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -445,24 +540,78 @@ function Employeetask() {
                   </label>
                   <input
                     type="text"
-                    required
                     name="name"
-                    value={formData.name || ""}
+                    value={form.name || ""}
                     onChange={handleChange}
+                    required
                     className="mt-1 block p-2 h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Description
+                    Company
                   </label>
                   <input
                     type="text"
-                    name="description"
-                    required
-                    value={formData.description || ""}
+                    name="company"
+                    value={form.company || ""}
                     onChange={handleChange}
+                    required
                     className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={form.location || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Task
+                  </label>
+                  <input
+                    type="text"
+                    name="task"
+                    value={form.task || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Working Hour
+                  </label>
+                  <input
+                    type="text"
+                    name="work_hours"
+                    value={form.work_hours || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Enter Hours"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Bill Number
+                  </label>
+                  <input
+                    type="text"
+                    name="bill_number"
+                    value={form.bill_number || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Enter Bill Number"
                   />
                 </div>
                 <div>
@@ -472,38 +621,39 @@ function Employeetask() {
                   <input
                     type="date"
                     name="date"
-                    value={formData.date||""}
+                    value={form.date || ""}
                     onChange={handleChange}
-                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Salary
+                    Charges
                   </label>
+
                   <input
                     type="text"
-                    name="salary"
-                    required
-                    value={formData.salary || ""}
-                    onChange={handleChange}
+                    name="charges"
                     className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={form.charges || ""}
+                    onChange={handleChange}
+                    required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Salary Status
+                    Income Status
                   </label>
                   <select
-                    name="salary_status"
-                    value={formData.salary_status}
-                    required
+                    name="income_status"
+                    value={form.income_status || ""}
                     onChange={handleChange}
-                    className="mt-1 block h-8  w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="mt-1 block h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   >
-                    <option value="">Select Salary Status</option>
-                    <option value="online">online</option>
-                    <option value="cash">cash</option>
+                    <option value="">Select Income Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Received">Received</option>
                   </select>
                 </div>
               </div>

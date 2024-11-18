@@ -25,8 +25,17 @@ exports.getcusterexcel = async (req, res) => {
 exports.postdata = async (req, res) => {
   try {
     // Extract data from request body
-    const { name, company, location, task, work_hours, date, charges } =
-      req.body;
+    const {
+      name,
+      company,
+      location,
+      task,
+      work_hours,
+      bill_number,
+      date,
+      charges,
+      income_status,
+    } = req.body;
 
     // Ensure all required fields are present
     if (
@@ -35,7 +44,9 @@ exports.postdata = async (req, res) => {
       !location ||
       !task ||
       !work_hours ||
+      !bill_number ||
       !date ||
+      !income_status ||
       !charges
     ) {
       return res.status(400).json({ Message: "All fields are required" });
@@ -43,15 +54,17 @@ exports.postdata = async (req, res) => {
 
     // Execute the query
     const query =
-      "INSERT INTO `employee_task`(`name`,`company`, `location`, `task`, `work_hours`, `date`,`charges`) VALUES (?,?,?,?,?,?,?)";
+      "INSERT INTO `employee_task`(`name`,`company`, `location`, `task`, `work_hours`, `bill_number`, `date`,`charges`, `income_status`) VALUES (?,?,?,?,?,?,?,?,?)";
     await connectDB.query(query, [
       name,
       company,
       location,
       task,
       work_hours,
+      bill_number,
       date,
       charges,
+      income_status,
     ]);
 
     // Send success response
@@ -105,17 +118,27 @@ exports.deletedata = async (req, res) => {
 
 exports.updatedata = async (req, res) => {
   const id = req.params.id;
-  const { name, company, location, task, work_hours, date, charges } = req.body;
+  const {
+    name,
+    company,
+    location,
+    task,
+    work_hours,
+    bill_number,
+    date,
+    charges,
+    income_status
+  } = req.body;
 
   const query = `
             UPDATE employee_task
-            SET name = ?, company = ?, location= ?, task = ?, work_hours = ?, date = ?, charges = ?
+            SET name = ?, company = ?, location= ?, task = ?, work_hours = ?, bill_number = ?, date = ?, charges = ?, income_status = ?
             WHERE id = ?
         `;
 
   connectDB.query(
     query,
-    [name, company, location, task, work_hours, date, charges, id],
+    [name, company, location, task, work_hours, bill_number, date, charges, income_status, id],
     (err, results) => {
       if (err) {
         console.error("Error executing query", err);

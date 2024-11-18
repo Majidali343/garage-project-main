@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import Logo from "../Pages/images/logo.jpeg";
 import Notification from "./images/Notification.png";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import axios from "axios";
-import { saveAs } from "file-saver";
 import Navigation from "./Navigation";
-import moment from "moment";
 import { MdDelete } from "react-icons/md";
 import { FaRegEdit } from "react-icons/fa";
 import Modal from "../Modal";
 
 function Employeetask() {
   const [dropdownOpen, setDropdownOpen] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [taskdata, setTaskdata] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
@@ -23,44 +18,77 @@ function Employeetask() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState(null);
-
+  const [incomeDropdownOpen, setIncomeDropdownOpen] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState("Choose Status");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     location: "",
     company: "",
     task: "",
     work_hours: "",
+    bill_number: "",
     date: new Date(),
     charges: "",
     task_status: "",
+    income_status: "",
   });
 
   const [form, setForm] = useState({});
 
-  const toggleDropdown = (index) => {
-    setDropdownOpen(dropdownOpen === index ? null : index);
+  const toggleIncomeDropdown = () => {
+    setIncomeDropdownOpen(!incomeDropdownOpen);
   };
 
+  useEffect(() => {
+    const pending = filteredData.filter(
+      task => task.income_status === "Pending" && task.charges
+    );
+    setPendingPayments(pending);
+  }, [filteredData]);
+
   const handleWorkHoursChange = (hours) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      work_hours: hours
+      work_hours: hours,
     }));
     setDropdownOpen(null);
   };
 
-  const handleDateChange = (date) => {
-    setFormData(prev => ({
-      ...prev,
-      date: date
-    }));
-  };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    // For work_hours, ensure only numbers and decimal points are entered
+    if (name === "work_hours") {
+      const regex = /^\d*\.?\d*$/;
+      if (regex.test(value) || value === "") {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
+  };
+
+  const handleDropdownChange = (value) => {
+    setPaymentStatus(value);
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      income_status: value,
+    }));
+    setIncomeDropdownOpen(false);
+  };
+
+  const handleDateChange = (date) => {
+    setFormData((prev) => ({
+      ...prev,
+      date: date,
     }));
   };
 
@@ -68,7 +96,8 @@ function Employeetask() {
     try {
       const dataToSubmit = {
         ...formData,
-        date: formData.date.toISOString().split('T')[0]
+        date: formData.date.toISOString().split("T")[0],
+        work_hours: parseFloat(formData.work_hours) || 0, // Convert to number and handle empty input
       };
 
       const response = await fetch(
@@ -83,7 +112,7 @@ function Employeetask() {
       );
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error("Network response was not ok");
       }
 
       await fetchData();
@@ -95,11 +124,12 @@ function Employeetask() {
         company: "",
         task: "",
         work_hours: "",
+        bill_number: "",
         date: new Date(),
         charges: "",
         task_status: "",
+        income_status: "",
       });
-
     } catch (error) {
       console.error("Error posting data:", error);
     }
@@ -111,7 +141,7 @@ function Employeetask() {
         "http://77.37.49.209:5000/employeetask/get/Etask"
       );
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error("Network response was not ok");
       }
       const data = await response.json();
       setTaskdata(data.rows);
@@ -127,43 +157,56 @@ function Employeetask() {
 
   useEffect(() => {
     filterData();
-  }, [dateFilter, searchName, searchCompany, taskdata]);
+  }, [dateFilter, searchName, searchCompany, taskdata, statusFilter]);
 
   const resetFilters = () => {
     setDateFilter({ start: "", end: "" });
     setSearchName("");
     setSearchCompany("");
+    setStatusFilter("all");
     setFilteredData(taskdata);
   };
 
   const filterData = () => {
     let data = taskdata;
 
+    // Apply date filter
     if (dateFilter.start && dateFilter.end) {
       data = data.filter(
-        (task) =>
-          task.date >= dateFilter.start && task.date <= dateFilter.end
+        (task) => task.date >= dateFilter.start && task.date <= dateFilter.end
       );
     }
 
+    // Apply name filter
     if (searchName) {
       data = data.filter((task) =>
         task.name.toLowerCase().includes(searchName.toLowerCase())
       );
     }
 
+    // Apply company filter
     if (searchCompany) {
       data = data.filter((task) =>
         task.company.toLowerCase().includes(searchCompany.toLowerCase())
       );
     }
 
+    // Apply status filter
+    if (statusFilter !== "all") {
+      data = data.filter((task) => task.income_status === statusFilter);
+    }
+
     setFilteredData(data);
   };
 
   const handleEdit = (task) => {
-    setCurrentTask(task);
-    setForm(task);
+    const editableTask = {
+      ...task,
+      date: task.date || "", // Ensure date is not null
+      income_status: task.income_status || "", // Ensure income_status is not null
+    };
+    setCurrentTask(editableTask);
+    setForm(editableTask);
     setEditModalOpen(true);
   };
 
@@ -182,7 +225,7 @@ function Employeetask() {
       );
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error("Network response was not ok");
       }
 
       setDeleteModalOpen(false);
@@ -194,16 +237,35 @@ function Employeetask() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    if (name === "work_hours") {
+      const regex = /^\d*\.?\d*$/;
+      if (regex.test(value) || value === "") {
+        setForm((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleSubmitChange = async (e) => {
     e.preventDefault();
 
     try {
+      // Create a copy of the form data to clean up before sending
+      const updatedData = {
+        ...form,
+        // Ensure all required fields are included and properly formatted
+        income_status: form.income_status || currentTask.income_status, // Use existing status if not changed
+        work_hours: parseFloat(form.work_hours) || form.work_hours, // Convert to number if possible
+        date: form.date || currentTask.date, // Use existing date if not changed
+      };
+
       const response = await fetch(
         `http://77.37.49.209:5000/employeetask/update/${currentTask.id}`,
         {
@@ -211,19 +273,67 @@ function Employeetask() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(form),
+          body: JSON.stringify(updatedData),
         }
       );
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error("Network response was not ok");
       }
 
       setEditModalOpen(false);
-      await fetchData();
+      await fetchData(); // Refresh the data after successful update
     } catch (error) {
       console.error("Error updating task data:", error);
     }
+  };
+
+  const renderNotifications = () => {
+    if (!showNotifications || pendingPayments.length === 0) return null;
+
+    return (
+      <div className="absolute right-0 mt-2 w-96 z-50">
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto">
+          {pendingPayments.map((payment, index) => (
+            <div 
+              key={index} 
+              className="p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <img src={Notification} alt="" className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="ml-3 w-full">
+                  <div className="flex justify-between items-start">
+                    <p className="text-sm font-medium text-gray-900">
+                      Pending Payment
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {payment.date}
+                    </p>
+                  </div>
+                  <div className="mt-1">
+                    <p className="text-sm text-gray-600">
+                      {payment.company} has a pending payment
+                    </p>
+                    <div className="mt-1 flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        Task: {payment.task}
+                      </span>
+                      <span className="text-sm font-medium text-orange-600">
+                        ${payment.charges}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -234,14 +344,25 @@ function Employeetask() {
           <Navigation />
         </div>
       </aside>
-      
+
       <div className="flex-1 flex flex-col ml-64">
         <header className="bg-white shadow p-7">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-[#3d3d3d]">Employee Task</h2>
+            <h2 className="text-xl font-bold text-[#3d3d3d]">Task</h2>
             <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 cursor-pointer hover:bg-gray-200 rounded-full">
-                <img src={Notification} alt="Notification Icon" />
+              <div className="relative">
+                <div 
+                  className="w-8 h-8 cursor-pointer hover:bg-gray-200 rounded-full flex items-center justify-center"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                >
+                  <img src={Notification} alt="Notification Icon" className="w-6 h-6" />
+                  {pendingPayments.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
+                      {pendingPayments.length}
+                    </span>
+                  )}
+                </div>
+                {renderNotifications()}
               </div>
               <button
                 className="text-[#FFFF] bg-[#ea8732] border-0 py-1 px-2 w-28 focus:outline-none hover:bg-gray-200 rounded font-semibold text-sm"
@@ -252,12 +373,11 @@ function Employeetask() {
             </div>
           </div>
         </header>
-
-        <div className="bg-white shadow p-10 flex items-center justify-center">
-          <div className="filters">
+        <div className="bg-white shadow p-10 flex flex-col items-center justify-center space-y-4">
+          <div className="filters flex items-center justify-center w-full">
             <input
               type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={dateFilter.start}
               onChange={(e) =>
                 setDateFilter({ ...dateFilter, start: e.target.value })
@@ -266,7 +386,7 @@ function Employeetask() {
             />
             <input
               type="date"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={dateFilter.end}
               onChange={(e) =>
                 setDateFilter({ ...dateFilter, end: e.target.value })
@@ -275,27 +395,58 @@ function Employeetask() {
             />
             <input
               type="text"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
               placeholder="Search Employee"
             />
             <input
               type="text"
-              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs mx-4"
+              className="w-1/1 px-3 py-1 border rounded shadow-sm text-xs space-x-4 ms-3"
               value={searchCompany}
               onChange={(e) => setSearchCompany(e.target.value)}
               placeholder="Search company"
             />
             <button
               onClick={resetFilters}
-              className="bg-[#ea8732] text-white px-6 py-1 rounded-md"
+              className="bg-[#ea8732] text-white px-6 py-1 rounded-md space-x-4 ms-3"
             >
               Reset
             </button>
+            <div className="group-filters flex space-x-4 ms-3">
+              <button
+                onClick={() => setStatusFilter("all")}
+                className={`px-6 py-1 rounded-md ${
+                  statusFilter === "all"
+                    ? "bg-[#ea8732] text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setStatusFilter("Pending")}
+                className={`px-6 py-1 rounded-md ${
+                  statusFilter === "Pending"
+                    ? "bg-[#ea8732] text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => setStatusFilter("Received")}
+                className={`px-6 py-1 rounded-md ${
+                  statusFilter === "Received"
+                    ? "bg-[#ea8732] text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+              >
+                Received
+              </button>
+            </div>
           </div>
         </div>
-
         <div className="flex-1 p-6 flex justify-center overflow-y-auto">
           <div className="overflow-x-auto w-full max-w-4xl">
             <table className="min-w-full bg-white shadow-md rounded-lg overflow-hidden">
@@ -317,10 +468,16 @@ function Employeetask() {
                     Work Hours
                   </th>
                   <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
+                    Bill Number
+                  </th>
+                  <th className="py-3 px-16 bg-gray-200 text-[#3d3d3d] text-center">
                     Date
                   </th>
                   <th className="py-3 px-6 bg-gray-200 text-[#3d3d3d] text-center">
                     Charges
+                  </th>
+                  <th className="py-3 px-6 bg-gray-200 text-[#3d3d3d] text-center">
+                    Payment Status
                   </th>
                   <th className="py-3 px-7 bg-gray-200 text-[#3d3d3d] text-center">
                     Action
@@ -371,43 +528,30 @@ function Employeetask() {
                   </td>
                   <td className="py-3 px-6 text-center text-xs">
                     <div className="relative inline-block">
-                      <button
-                        className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
-                        type="button"
-                        onClick={() => toggleDropdown(0)}
-                      >
-                        {formData.work_hours || "Choose"}
-                        <svg
-                          className="w-2.5 h-2.5 ml-3"
-                          aria-hidden="true"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 10 6"
-                        >
-                          <path
-                            stroke="currentColor"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="1.5"
-                            d="m1 1 4 4 4-4"
-                          />
-                        </svg>
-                      </button>
-                      {dropdownOpen === 0 && (
-                        <div className="absolute mt-2 w-24 py-1 bg-white border border-gray-300 rounded shadow-lg">
-                          {[
-                            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-                          ].map((hours) => (
-                            <button
-                              key={hours}
-                              onClick={() => handleWorkHoursChange(hours)}
-                              className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-200"
-                            >
-                              {hours} Hour{hours > 1 ? "s" : ""}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <td className="py-3 px-6 text-center text-xs">
+                        <input
+                          type="text"
+                          name="work_hours"
+                          value={formData.work_hours}
+                          onChange={handleInputChange}
+                          className="w-20 py-1 px-2 border rounded"
+                          placeholder="Enter Hours"
+                        />
+                      </td>
+                    </div>
+                  </td>
+                  <td className="py-3 px-6 text-center text-xs">
+                    <div className="relative inline-block">
+                      <td className="py-3 px-6 text-center text-xs">
+                        <input
+                          type="text"
+                          name="work_hours"
+                          value={formData.bill_number}
+                          onChange={handleInputChange}
+                          className="w-full py-1 px-2 border rounded"
+                          placeholder="Enter Bill Number"
+                        />
+                      </td>
                     </div>
                   </td>
                   <td className="py-3 px-6 text-center text-xs">
@@ -427,6 +571,47 @@ function Employeetask() {
                       value={formData.charges}
                       onChange={handleInputChange}
                     />
+                  </td>
+                  <td className="py-3 px-4 text-center text-xs">
+                    <div className="relative inline-block">
+                      <button
+                        className="text-[#ea8732] bg-[#fef4eb] hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-[#ffd7b5] font-medium rounded-full text-xs px-4 py-1.5 inline-flex items-center"
+                        type="button"
+                        onClick={toggleIncomeDropdown}
+                      >
+                        {paymentStatus}
+                        <svg
+                          className="w-2.5 h-2.5 ml-3"
+                          aria-hidden="true"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 10 6"
+                        >
+                          <path
+                            stroke="currentColor"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="1.5"
+                            d="m1 1 4 4 4-4"
+                          />
+                        </svg>
+                      </button>
+                      {incomeDropdownOpen && (
+                        <div className="absolute mt-2 bg-white border border-gray-300 rounded shadow-lg">
+                          <ul className="list-none m-0 p-0">
+                            {["Pending", "Received"].map((status, i) => (
+                              <li
+                                key={i}
+                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => handleDropdownChange(status)}
+                              >
+                                {status}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
 
@@ -449,10 +634,16 @@ function Employeetask() {
                       {task.work_hours}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
+                      {task.bill_number}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
                       {task.date}
                     </td>
                     <td className="py-3 px-6 text-center text-xs">
                       {task.charges}
+                    </td>
+                    <td className="py-3 px-6 text-center text-xs">
+                      {task.income_status}
                     </td>
                     <td className=" text-center text-xs">
                       <button
@@ -550,30 +741,29 @@ function Employeetask() {
                   <label className="block text-sm font-medium text-gray-700">
                     Working Hour
                   </label>
-                  <select
+                  <input
+                    type="text"
                     name="work_hours"
                     value={form.work_hours || ""}
                     onChange={handleChange}
                     required
-                    className="mt-1 block h-8  w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  >
-                    <option value="">Select Work Hours</option>
-                    <option value="1">1 Hour</option>
-                    <option value="2">2 Hours</option>
-                    <option value="3">3 Hours</option>
-                    <option value="4">4 Hours</option>
-                    <option value="5">5 Hours</option>
-                    <option value="6">6 Hours</option>
-                    <option value="7">7 Hours</option>
-                    <option value="8">8 Hours</option>
-                    <option value="9">9 Hours</option>
-                    <option value="10">10 Hours</option>
-                    <option value="11">11 Hours</option>
-                    <option value="12">12 Hours</option>
-                    <option value="13">13 Hours</option>
-                    <option value="14">14 Hours</option>
-                    <option value="15">15 Hours</option>
-                  </select>
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Enter Hours"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Bill Number
+                  </label>
+                  <input
+                    type="text"
+                    name="bill_number"
+                    value={form.bill_number || ""}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block h-8 p-2 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Enter Bill Number"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
@@ -600,6 +790,22 @@ function Employeetask() {
                     onChange={handleChange}
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Income Status
+                  </label>
+                  <select
+                    name="income_status"
+                    value={form.income_status || ""}
+                    onChange={handleChange}
+                    className="mt-1 block h-8 w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  >
+                    <option value="">Select Income Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Received">Received</option>
+                  </select>
                 </div>
               </div>
               <button
