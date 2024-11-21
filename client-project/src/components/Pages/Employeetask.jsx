@@ -545,7 +545,7 @@ function Employeetask() {
                       <td className="py-3 px-6 text-center text-xs">
                         <input
                           type="text"
-                          name="work_hours"
+                          name="bill_number"
                           value={formData.bill_number}
                           onChange={handleInputChange}
                           className="w-full py-1 px-2 border rounded"

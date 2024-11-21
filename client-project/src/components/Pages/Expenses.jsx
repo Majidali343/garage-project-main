@@ -175,7 +175,7 @@ function Employeetask() {
     setFilteredData(data);
   };
 
-  const chartLabels = filteredData.map((item) => item.date);
+  const chartLabels = filteredData.map((item) => item.name);
   const chartData = filteredData.map((item) => item.amount);
 
   useEffect(() => {

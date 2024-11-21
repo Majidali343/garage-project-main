@@ -566,10 +566,10 @@ function Employeetask() {
                       type="text"
                       placeholder="Invoice Number"
                       className="w-full py-1 px-2 border rounded"
-                      value={invoices_num || ""}
+                      value={invoices_num[0] || ""}
                       onChange={(e) => {
                         const newinvoices_num = [...invoices_num];
-                        newinvoices_num = e.target.value;
+                        newinvoices_num[0] = e.target.value;
                         setInvoicesNum(newinvoices_num);
                       }}
                     />
